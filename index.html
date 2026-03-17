@@ -785,37 +785,47 @@ function renderPagos(){
   html+=wrap;
   const searchLow=pagosSearch.toLowerCase();
   state.students.forEach(s=>{
-    const hidden=searchLow&&!s.name.toLowerCase().includes(searchLow)?"display:none;":"";
     const inQuota=isInQuota(s.id,q);
+    const paid=inQuota&&isPaid(s.id,q.id);
+    const searchHide=searchLow&&!s.name.toLowerCase().includes(searchLow);
+    const filtroHide=!inQuota
+      ? pagosFiltro!=="todos"
+      : (pagosFiltro==="pagados"&&!paid)||(pagosFiltro==="pendientes"&&paid);
+    const vis=searchHide||filtroHide?"display:none;":"";
+
     if(!inQuota){
-      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" style="opacity:.3;cursor:default;${hidden}">
+      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="na" style="opacity:.3;cursor:default;${vis}">
         <div class="s-dot" style="background:#2e3a55;border:2px dashed #334155"></div>
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div></div>
         <div class="s-status" style="color:#475569;font-size:11px">No aplica</div>
       </div>`;
       return;
     }
-    const paid=isPaid(s.id,q.id);
     const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
     const isPart=partial>0&&!paid;
+    const sAmt=getStudentAmount(s.id,q);
     const dotColor=paid?"#3dd68c":isPart?"#f5c842":"#2e3a55";
     const stColor=paid?"#3dd68c":isPart?"#f5c842":"#7a85a0";
     const stText=paid?"✓ Pagado":isPart?fmt(partial):"Pendiente";
+    const paidKey=paid?"1":"0";
 
     if(pagosLoteMode&&!paid){
-      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="0" style="cursor:default;${hidden}">
+      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:default;${vis}">
         <input type="checkbox" class="lote-check" id="lote-${s.id}">
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </div>`;
     } else {
-      html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paid2?'1':'0'}" onclick="requireAdmin(()=>openPayment('${s.id}','${q.id}'))" style="${hidden}">
+      html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" onclick="requireAdmin(()=>openPayment('${s.id}','${q.id}'))" style="${vis}">
         <div class="s-dot" style="background:${dotColor}"></div>
-        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(getStudentAmount(s.id,q)-partial)}</div>`:""}</div>
+        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>
+          ${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(sAmt-partial)}</div>`:""}
+          ${(q.amounts&&q.amounts[s.id])?`<div class="s-hint" style="color:var(--yellow)">Monto especial: ${fmt(sAmt)}</div>`:""}
+        </div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </button>`;
     }
-  });
+  }););
   html+=wrapEnd;
   html+=`</div>`; // close student-list-wrap
   return html;
@@ -945,17 +955,32 @@ function selectField(label,id,opts,val){let s=`<div class="field"><label>${label
 
 function openAddQuota(){
   // Step 1: name, amount, date + "Aplica a todos" toggle
-  var allStudentsHTML = '<div class="field"><label>¿Aplica a todos los alumnos?</label><div style="display:flex;gap:8px;margin-top:4px">'
+  // Selector de alumnos + wizard de montos
+  var allStudentsHTML =
+    // ¿Aplica a todos?
+    '<div class="field"><label>¿Aplica a todos los alumnos?</label><div style="display:flex;gap:8px;margin-top:4px">'
     + '<button type="button" id="q-all-yes" onclick="qToggleAll(true)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600">Sí, todos</button>'
     + '<button type="button" id="q-all-no" onclick="qToggleAll(false)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px">Seleccionar</button>'
     + '</div></div>'
-    + '<div id="q-student-list" style="display:none;max-height:300px;overflow-y:auto;margin-top:4px">'
-    + '<div style="display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid var(--border2);margin-bottom:4px">'
-    + '<input type="checkbox" id="q-custom-amounts" onchange="qToggleCustomAmounts(this.checked)" style="width:16px;height:16px;accent-color:var(--navy)">'
-    + '<label for="q-custom-amounts" style="font-size:12px;color:var(--muted);cursor:pointer">Montos distintos por alumno</label>'
+    // Lista de alumnos (solo visible si "Seleccionar")
+    + '<div id="q-student-list" style="display:none;max-height:240px;overflow-y:auto;margin-bottom:8px">'
+    + state.students.map(s=>`<label style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" id="qsid-${s.id}" checked style="width:16px;height:16px;accent-color:var(--navy)"><span style="font-size:13px">${s.name}</span></label>`).join('')
     + '</div>'
-    + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><input type="checkbox" id="qsid-${s.id}" checked style="width:16px;height:16px;accent-color:var(--navy);flex-shrink:0"><span style="font-size:13px;flex:1">${s.name}</span><input type="text" id="qamt-${s.id}" inputmode="numeric" placeholder="Monto" style="display:none;width:90px;padding:6px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;text-align:right" oninput="formatMoneyInput(this)"></div>`).join('')
-    + '</div>';
+    // Modo de montos
+    + '<div class="field"><label>Modo de cobro</label><div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">'
+    + '<label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid var(--border2);cursor:pointer"><input type="radio" name="q-amt-mode" value="equal" checked onchange="qAmtMode(this.value)" style="accent-color:var(--navy)"><div><div style="font-size:13px;font-weight:500">Monto igual para todos</div><div style="font-size:11px;color:var(--muted)">Todos pagan el mismo monto base</div></div></label>'
+    + '<label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid var(--border2);cursor:pointer"><input type="radio" name="q-amt-mode" value="perperson" onchange="qAmtMode(this.value)" style="accent-color:var(--navy)"><div><div style="font-size:13px;font-weight:500">Múltiplo por personas</div><div style="font-size:11px;color:var(--muted)">Precio por persona × cantidad de personas por familia</div></div></label>'
+    + '<label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid var(--border2);cursor:pointer"><input type="radio" name="q-amt-mode" value="exceptions" onchange="qAmtMode(this.value)" style="accent-color:var(--navy)"><div><div style="font-size:13px;font-weight:500">Base + excepciones</div><div style="font-size:11px;color:var(--muted)">Monto base para todos, edita los que son distintos</div></div></label>'
+    + '</div></div>'
+    // Panel por personas
+    + '<div id="q-perperson-panel" style="display:none"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
+    + '<div style="max-height:240px;overflow-y:auto">'
+    + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1">${s.name}</span><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><button type="button" onclick="qPPAdj('${s.id}',-1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer">−</button><span id="qpp-${s.id}" style="font-size:13px;font-weight:600;min-width:20px;text-align:center">2</span><button type="button" onclick="qPPAdj('${s.id}',1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer">+</button><span id="qpptotal-${s.id}" style="font-size:12px;color:var(--muted);min-width:55px;text-align:right">—</span></div></div>`).join('')
+    + '</div></div>'
+    // Panel excepciones
+    + '<div id="q-exceptions-panel" style="display:none"><div style="max-height:240px;overflow-y:auto">'
+    + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1">${s.name}</span><input type="text" id="qexc-${s.id}" inputmode="numeric" placeholder="Monto base" style="width:100px;padding:7px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;text-align:right;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this)"></div>`).join('')
+    + '</div></div>';
   var draftToggle='<div class="field" style="margin-top:4px"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="q-is-draft" style="width:16px;height:16px;accent-color:var(--navy)"><span>Guardar como borrador <span style="color:var(--muted);font-size:11px">(no aparece en pagos hasta activar)</span></span></label></div>';
   openSheet("📋 Nueva cuota",
     field("Nombre","f-name","ej: Asado fin de año")
@@ -977,10 +1002,27 @@ function qToggleAll(all){
   document.getElementById("q-all-no").style.borderColor = all ? "var(--border2)" : "var(--navy)";
   document.getElementById("q-student-list").style.display = all ? "none" : "block";
 }
-function qToggleCustomAmounts(on){
+function qAmtMode(mode){
+  document.getElementById("q-perperson-panel").style.display=mode==="perperson"?"block":"none";
+  document.getElementById("q-exceptions-panel").style.display=mode==="exceptions"?"block":"none";
+}
+function qPPAdj(sid,delta){
+  const el=document.getElementById("qpp-"+sid);
+  if(!el)return;
+  let v=parseInt(el.textContent)||2;
+  v=Math.max(1,v+delta);
+  el.textContent=v;
+  qUpdatePP();
+}
+function qUpdatePP(){
+  const pp=getMoneyVal("q-price-pp");
   state.students.forEach(s=>{
-    const el=document.getElementById("qamt-"+s.id);
-    if(el) el.style.display=on?"block":"none";
+    const el=document.getElementById("qpp-"+s.id);
+    const tel=document.getElementById("qpptotal-"+s.id);
+    if(el&&tel){
+      const persons=parseInt(el.textContent)||2;
+      tel.textContent=pp?fmt(pp*persons):"—";
+    }
   });
 }
 
@@ -991,16 +1033,27 @@ function saveAddQuota(){
   if(!name||!amount)return;
   let studentIds=[];
   let amounts={};
-  const customAmts=document.getElementById("q-custom-amounts")?.checked;
+  const amtMode=document.querySelector('input[name="q-amt-mode"]:checked')?.value||"equal";
   if(!window._quotaAllStudents){
     studentIds=state.students.filter(s=>document.getElementById("qsid-"+s.id)?.checked).map(s=>s.id);
     if(studentIds.length===0)return;
-    if(customAmts){
-      studentIds.forEach(sid=>{
-        const v=getMoneyVal("qamt-"+sid);
-        if(v>0)amounts[sid]=v;
+  }
+  const targetStudents=studentIds.length>0?studentIds:state.students.map(s=>s.id);
+  if(amtMode==="perperson"){
+    const pp=getMoneyVal("q-price-pp");
+    if(pp>0){
+      targetStudents.forEach(sid=>{
+        const el=document.getElementById("qpp-"+sid);
+        const persons=el?parseInt(el.textContent)||2:2;
+        const total=pp*persons;
+        if(total!==amount)amounts[sid]=total;
       });
     }
+  } else if(amtMode==="exceptions"){
+    targetStudents.forEach(sid=>{
+      const v=getMoneyVal("qexc-"+sid);
+      if(v>0&&v!==amount)amounts[sid]=v;
+    });
   }
   const hasCustom=Object.keys(amounts).length>0;
   const isDraft=document.getElementById("q-is-draft")?.checked||false;
