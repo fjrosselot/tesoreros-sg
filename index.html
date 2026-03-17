@@ -689,7 +689,7 @@ function renderResumen(){
   const tot=state.payments.reduce((s,p)=>s+p.amount,0);
   const gas=state.expenses.reduce((s,e)=>s+e.amount,0);
   const bal=tot-gas;
-  const debtors=state.students.map(s=>({...s,owed:state.quotas.filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0)})).filter(s=>s.owed>0).sort((a,b)=>b.owed-a.owed);
+  const debtors=state.students.map(s=>({...s,owed:state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0)})).filter(s=>s.owed>0).sort((a,b)=>b.owed-a.owed);
 
   let html=`<div class="kpi-grid">
     <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(tot)}</div><div class="kpi-label">Recaudado</div></div>
@@ -697,6 +697,33 @@ function renderResumen(){
     <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${bal>=0?"#5b82f0":"#f16060"}">${fmt(bal)}</div><div class="kpi-label">Balance</div></div>
     <div class="kpi-card"><div class="kpi-icon">👥</div><div class="kpi-value">${state.students.length}</div><div class="kpi-label">Alumnos</div></div>
   </div>`;
+
+  // Flujo proyectado
+  const activeQuotas2=state.quotas.filter(q=>!q.draft);
+  const draftQuotas=state.quotas.filter(q=>q.draft);
+  const porRecaudar=activeQuotas2.reduce((sum,q)=>{
+    const qs=getQuotaStudents(q);
+    const collected=state.payments.filter(p=>p.quotaId===q.id).reduce((s,p)=>s+p.amount,0);
+    const expected=qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
+    return sum+(expected-collected);
+  },0);
+  const draftTotal=draftQuotas.reduce((sum,q)=>{
+    const qs=getQuotaStudents(q);
+    return sum+qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
+  },0);
+  const balProyectado=tot+porRecaudar+(flujoDrafts?draftTotal:0)-gas;
+
+  html+=`<div class="section"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="sec-title" style="margin:0">📈 Flujo proyectado</div>
+    ${draftQuotas.length?`<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer"><input type="checkbox" ${flujoDrafts?"checked":""} onchange="flujoDrafts=this.checked;render()" style="accent-color:var(--navy);width:14px;height:14px"> Incluir borradores</label>`:""}
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+    <div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">💰 Recaudado</span><span style="font-size:13px;font-weight:600;color:#3dd68c">${fmt(tot)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">📥 Por recaudar</span><span style="font-size:13px;font-weight:600;color:#5b82f0">${fmt(porRecaudar)}</span></div>
+    ${flujoDrafts&&draftTotal>0?`<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">📝 Borradores</span><span style="font-size:13px;font-weight:600;color:#f5c842">${fmt(draftTotal)}</span></div>`:""}
+    <div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">🧾 Gastos</span><span style="font-size:13px;font-weight:600;color:#f97316">${fmt(gas)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:13px 14px;background:${balProyectado>=0?"rgba(61,214,140,.05)":"rgba(241,96,96,.05)"}"><span style="font-size:13px;font-weight:700">Balance proyectado</span><span style="font-size:15px;font-weight:700;color:${balProyectado>=0?"#3dd68c":"#f16060"}">${fmt(balProyectado)}</span></div>
+  </div></div>`;
 
   const isDesk=isDesktop();
   if(isDesk) html+=`<div class="desk-two-col">`;
@@ -710,6 +737,7 @@ function renderResumen(){
         <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${fmt(q.amount)} · ${q.date}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           <span class="draft-badge">Borrador</span>
+          <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))" title="Editar">✏️</button>
           <button class="icon-btn" onclick="requireAdmin(()=>activateDraft('${q.id}'))" title="Activar cuota" style="background:var(--green-dim);border-color:var(--green);color:var(--green)">✓</button>
           <button class="icon-btn" onclick="requireAdmin(()=>deleteQuota('${q.id}'))">🗑️</button>
         </div>
@@ -730,7 +758,7 @@ function renderResumen(){
   html+=`<button class="add-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button></div>`;
 
   html+=`<div>`;
-  html+=`<div class="section"><div class="sec-title">⚠️ Deudores (${debtors.length})</div>`;
+  html+=`<div class="section"><div class="sec-title">⚠️ Pendientes (${debtors.length})</div>`;
   if(!debtors.length)html+=`<div class="empty">🎉 Todos al día</div>`;
   debtors.slice(0,8).forEach(s=>{html+=`<div class="list-row"><div class="row-name">${s.name}</div><div class="row-val" style="color:#f16060">${fmt(s.owed)}</div></div>`;});
   if(debtors.length>8)html+=`<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px 0">+${debtors.length-8} más en Pagos</div>`;
@@ -921,7 +949,7 @@ function renderAlumnos(){
   if(isDesk)html+=`<div id="alumnos-list" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
   else html+=`<div id="alumnos-list">`;
   state.students.forEach((s,i)=>{
-    const owed=state.quotas.filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0);
+    const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
     const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
     html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}" onclick="openFicha('${s.id}')"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
@@ -1155,7 +1183,7 @@ function deletePayment(pid,sid,qid){
 function renderPendientes(){
   const morosos = state.students.map(s=>{
     const desglose = state.quotas
-      .filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id))
+      .filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id))
       .map(q=>{
         const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
         const falta=q.amount-partial;
@@ -1206,8 +1234,8 @@ function openFicha(sid){
   if(!s)return;
 
   const totalPaid=state.payments.filter(p=>p.studentId===sid).reduce((x,p)=>x+p.amount,0);
-  const owed=state.quotas.filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0);
-  const quotasApply=state.quotas.filter(q=>isInQuota(s.id,q));
+  const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
+  const quotasApply=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q));
   const quotasDone=quotasApply.filter(q=>isPaid(s.id,q.id)).length;
   const note=s.note||"";
 
@@ -1306,6 +1334,7 @@ function deleteLog(lid){
 let pagosSearch="";
 let pagosLoteMode=false;
 let pagosFiltro="todos"; // todos | pagados | pendientes
+let flujoDrafts=false; // toggle borradores en flujo proyectado
 let alumnosSearch="";
 let pendientesSearch="";
 let gastosSearch="";
