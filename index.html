@@ -373,7 +373,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <div class="sidebar-title">Comité Delegados</div>
       <div class="sidebar-sub">Saint George's College</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
-        <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">COMITÉ</span>
+        <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">Delegados</span>
         <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px">Público</span>
       </div>
       <div style="font-size:11px;margin-top:6px"><span id="fb-status-desk" style="color:var(--muted)">⏳</span></div>
@@ -425,7 +425,7 @@ input,select{font-family:'Roboto',sans-serif;}
       </div>
     </div>
     <div style="display:flex;gap:6px;align-items:center">
-      <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">COMITÉ</span>
+      <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">Delegados</span>
       <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px">Público</span>
       <button class="exit-btn" id="mob-exit-btn" onclick="doLogout()">Salir</button>
     </div>
@@ -547,7 +547,7 @@ function doLogout(){
     sessionStorage.removeItem("auth");
     updateAdminUI();
     render();
-    showToast("Sesión de comité cerrada");
+    showToast("Modo Delegados cerrado");
   } else {
     document.getElementById("app").classList.add("hidden");
     document.getElementById("login").classList.remove("hidden");
@@ -557,7 +557,7 @@ function doLogout(){
 function requireAdmin(fn){
   if(isAdmin){ fn(); return; }
   // Show PIN prompt inline
-  openSheet("🔐 Acceso comité",
+  openSheet("🔐 Acceso Delegados",
     '<div style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:16px">Ingresa el PIN del comité para continuar</div>'+
     '<div class="field"><input id="admin-pin" type="password" placeholder="••••" maxlength="8" style="width:100%;padding:14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:22px;text-align:center;outline:none;letter-spacing:8px;" autocomplete="off"></div>'+
     '<div id="admin-pin-err" style="color:var(--red);font-size:12px;text-align:center;display:none">PIN incorrecto</div>',
@@ -572,7 +572,7 @@ function checkAdminPin(){
     sessionStorage.setItem("auth","1");
     updateAdminUI();
     closeSheet();
-    showToast("✓ Modo comité activado");
+    showToast("✓ Modo Delegados activado");
     if(window._pendingAdminFn){ window._pendingAdminFn(); window._pendingAdminFn=null; }
   } else {
     document.getElementById("admin-pin-err").style.display="block";
