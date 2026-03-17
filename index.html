@@ -404,6 +404,8 @@ input,select{font-family:'Roboto',sans-serif;}
     </nav>
     <div class="sidebar-footer">
       <button class="sidebar-exit" id="desk-admin-btn" onclick="requireAdmin(function(){})" style="margin-bottom:4px">🔐 Modo Delegados</button>
+      <button class="sidebar-exit" id="desk-backup-btn" onclick="requireAdmin(downloadBackup)" style="display:none;margin-bottom:2px">💾 Backup JSON</button>
+      <button class="sidebar-exit" id="desk-restore-btn" onclick="requireAdmin(openRestore)" style="display:none;margin-bottom:4px">📂 Restaurar</button>
       <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
     </div>
   </aside>
@@ -463,6 +465,8 @@ input,select{font-family:'Roboto',sans-serif;}
 </div>
 
 <div id="modal-container"></div>
+<canvas id="share-canvas" style="display:none"></canvas>
+<input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="handleRestoreFile(this)">
 <div id="toast-container"></div>
 
 <script>
@@ -529,6 +533,10 @@ function updateAdminUI(){
   if(pubBadge) pubBadge.style.display=isAdmin?"none":"inline-flex";
   var adminBtn=document.getElementById("desk-admin-btn");
   if(adminBtn) adminBtn.style.display=isAdmin?"none":"flex";
+  ["desk-backup-btn","desk-restore-btn"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.style.display=isAdmin?"flex":"none";
+  });
   // Show/hide log tab (admin only)
   ["tab-log","nav-log"].forEach(function(id){
     var el=document.getElementById(id);
@@ -696,6 +704,9 @@ function renderResumen(){
     <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(gas)}</div><div class="kpi-label">Gastos</div></div>
     <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${bal>=0?"#5b82f0":"#f16060"}">${fmt(bal)}</div><div class="kpi-label">Balance</div></div>
     <div class="kpi-card"><div class="kpi-icon">👥</div><div class="kpi-value">${state.students.length}</div><div class="kpi-label">Alumnos</div></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+    <button onclick="shareImage(null)" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--green-dim);border:1px solid var(--green);border-radius:var(--r);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">📸 Compartir resumen</button>
   </div>`;
 
   // Flujo proyectado
@@ -793,7 +804,9 @@ function renderPagos(){
       <button class="icon-btn" onclick="requireAdmin(()=>deleteQuota('${q.id}'))">🗑️</button>
     </div></div>
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
-    <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span></div></div>`;
+    <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span>
+    <button onclick="shareImage('${q.id}')" style="background:var(--green-dim);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:11px;padding:4px 10px;cursor:pointer;font-family:Roboto,sans-serif;font-weight:600">📸</button>
+    </div></div>`;
 
   // Lote bar
   if(pagosLoteMode){
@@ -1338,6 +1351,222 @@ let flujoDrafts=false; // toggle borradores en flujo proyectado
 let alumnosSearch="";
 let pendientesSearch="";
 let gastosSearch="";
+
+// ── BACKUP / RESTAURAR ───────────────────────────────────────
+function downloadBackup(){
+  const data=JSON.stringify(state,null,2);
+  const blob=new Blob([data],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="comite4b_backup_"+hoy()+".json";
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("✓ Backup descargado");
+}
+function openRestore(){
+  document.getElementById("restore-file-input").click();
+}
+function handleRestoreFile(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const parsed=JSON.parse(e.target.result);
+      if(!parsed.students||!parsed.quotas){showToast("❌ Archivo inválido","err");return;}
+      if(!confirm("¿Restaurar datos? Esto reemplazará TODO el estado actual."))return;
+      state=mergeState(parsed);
+      saveData();render();
+      addLog("📂","Datos restaurados desde backup JSON");
+      showToast("✓ Datos restaurados");
+    }catch(err){
+      showToast("❌ Error al leer el archivo","err");
+    }
+    input.value="";
+  };
+  reader.readAsText(file);
+}
+
+// ── COMPARTIR IMAGEN ─────────────────────────────────────────
+function shareImage(quotaId){
+  const canvas=document.getElementById("share-canvas");
+  const ctx=canvas.getContext("2d");
+  const W=800, pad=40;
+
+  // Gather data
+  let lines=[];
+  let title="";
+  let subtitle="";
+
+  if(quotaId){
+    // Single quota view
+    const q=state.quotas.find(x=>x.id===quotaId);
+    if(!q)return;
+    const qs=getQuotaStudents(q);
+    const paidList=qs.filter(s=>isPaid(s.id,q.id));
+    const pendList=qs.filter(s=>!isPaid(s.id,q.id));
+    const collected=state.payments.filter(p=>p.quotaId===q.id).reduce((s,p)=>s+p.amount,0);
+    const expected=qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
+    title=q.name;
+    subtitle=fmt(q.amount)+" · "+q.date;
+    lines=[
+      {type:"stat", label:"✓ Pagaron", value:paidList.length+"/"+qs.length, color:"#3dd68c"},
+      {type:"stat", label:"💰 Recaudado", value:fmt(collected), color:"#3dd68c"},
+      {type:"stat", label:"⏳ Pendiente", value:fmt(expected-collected), color:"#f16060"},
+      {type:"divider"},
+      {type:"section", label:"⏳ Pendientes ("+pendList.length+")"},
+      ...pendList.map(s=>{
+        const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
+        const sAmt=getStudentAmount(s.id,q);
+        return {type:"row", name:s.name, value:partial>0?"Abonó "+fmt(partial)+" · falta "+fmt(sAmt-partial):"Debe "+fmt(sAmt), color:"#f16060"};
+      }),
+      {type:"section", label:"✓ Pagaron ("+paidList.length+")"},
+      ...paidList.map(s=>({type:"row", name:s.name, value:"✓ Pagado", color:"#3dd68c"})),
+    ];
+  } else {
+    // General summary
+    const tot=state.payments.reduce((s,p)=>s+p.amount,0);
+    const gas=state.expenses.reduce((s,e)=>s+e.amount,0);
+    const activeQ=state.quotas.filter(q=>!q.draft);
+    const porRecaudar=activeQ.reduce((sum,q)=>{
+      const qs=getQuotaStudents(q);
+      const collected=state.payments.filter(p=>p.quotaId===q.id).reduce((s,p)=>s+p.amount,0);
+      const expected=qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
+      return sum+(expected-collected);
+    },0);
+    title="Comité 4°B — Saint George's";
+    subtitle="Estado del fondo · "+hoy();
+    lines=[
+      {type:"stat", label:"💰 Recaudado", value:fmt(tot), color:"#3dd68c"},
+      {type:"stat", label:"📥 Por recaudar", value:fmt(porRecaudar), color:"#5b82f0"},
+      {type:"stat", label:"🧾 Gastos", value:fmt(gas), color:"#f5c842"},
+      {type:"stat", label:"⚖️ Balance", value:fmt(tot-gas), color:tot-gas>=0?"#3dd68c":"#f16060"},
+      {type:"divider"},
+      ...activeQ.map(q=>{
+        const st=qStats(q.id);
+        const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
+        return {type:"quota", name:q.name, pct, paid:st.paid, total:st.total, collected:st.collected};
+      }),
+    ];
+  }
+
+  // Calculate height
+  let H=pad*2+80+40; // header
+  lines.forEach(l=>{
+    if(l.type==="stat") H+=44;
+    else if(l.type==="divider") H+=20;
+    else if(l.type==="section") H+=36;
+    else if(l.type==="row") H+=34;
+    else if(l.type==="quota") H+=52;
+  });
+  H=Math.max(H,300);
+
+  canvas.width=W;
+  canvas.height=H;
+
+  // Background
+  ctx.fillStyle="#0f1117";
+  ctx.fillRect(0,0,W,H);
+
+  // Header card
+  ctx.fillStyle="#181c26";
+  roundRect(ctx,pad,pad,W-pad*2,80,12);
+  ctx.fillStyle="#eef0f5";
+  ctx.font="bold 22px Roboto, Arial, sans-serif";
+  ctx.fillText(title,pad+16,pad+32);
+  ctx.fillStyle="#7a85a0";
+  ctx.font="14px Roboto, Arial, sans-serif";
+  ctx.fillText(subtitle,pad+16,pad+56);
+
+  let y=pad+80+16;
+
+  lines.forEach(l=>{
+    if(l.type==="stat"){
+      ctx.fillStyle="#181c26";
+      roundRect(ctx,pad,y,W-pad*2,36,8);
+      ctx.fillStyle="#7a85a0";
+      ctx.font="13px Roboto, Arial, sans-serif";
+      ctx.fillText(l.label,pad+12,y+23);
+      ctx.fillStyle=l.color||"#eef0f5";
+      ctx.font="bold 14px Roboto, Arial, sans-serif";
+      const vw=ctx.measureText(l.value).width;
+      ctx.fillText(l.value,W-pad-12-vw,y+23);
+      y+=44;
+    } else if(l.type==="divider"){
+      ctx.strokeStyle="#252d42";
+      ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pad,y+8);ctx.lineTo(W-pad,y+8);ctx.stroke();
+      y+=20;
+    } else if(l.type==="section"){
+      ctx.fillStyle="#7a85a0";
+      ctx.font="bold 12px Roboto, Arial, sans-serif";
+      ctx.fillText(l.label.toUpperCase(),pad,y+20);
+      y+=36;
+    } else if(l.type==="row"){
+      ctx.fillStyle="#181c26";
+      roundRect(ctx,pad,y,W-pad*2,26,6);
+      ctx.fillStyle="#eef0f5";
+      ctx.font="12px Roboto, Arial, sans-serif";
+      ctx.fillText(l.name,pad+10,y+18);
+      ctx.fillStyle=l.color||"#7a85a0";
+      ctx.font="12px Roboto, Arial, sans-serif";
+      const vw=ctx.measureText(l.value).width;
+      ctx.fillText(l.value,W-pad-10-vw,y+18);
+      y+=34;
+    } else if(l.type==="quota"){
+      ctx.fillStyle="#181c26";
+      roundRect(ctx,pad,y,W-pad*2,44,8);
+      ctx.fillStyle="#eef0f5";
+      ctx.font="bold 13px Roboto, Arial, sans-serif";
+      ctx.fillText(l.name,pad+12,y+18);
+      ctx.fillStyle="#7a85a0";
+      ctx.font="11px Roboto, Arial, sans-serif";
+      ctx.fillText(l.paid+"/"+l.total+" pagaron · "+fmt(l.collected),pad+12,y+34);
+      // Progress bar
+      const bx=W-pad-160,bw=150,bh=6,by=y+19;
+      ctx.fillStyle="#252d42";
+      roundRect(ctx,bx,by,bw,bh,3);
+      ctx.fillStyle=l.pct===100?"#3dd68c":"#2d5be3";
+      roundRect(ctx,bx,by,Math.max(bw*(l.pct/100),l.pct>0?4:0),bh,3);
+      ctx.fillStyle=l.pct===100?"#3dd68c":"#7a85a0";
+      ctx.font="bold 12px Roboto, Arial, sans-serif";
+      const pw=ctx.measureText(l.pct+"%").width;
+      ctx.fillText(l.pct+"%",bx-pw-8,by+bh);
+      y+=52;
+    }
+  });
+
+  // Footer
+  ctx.fillStyle="#323d57";
+  ctx.font="11px Roboto, Arial, sans-serif";
+  const footer="Generado por Comité 4°B · "+new Date().toLocaleString("es-CL");
+  ctx.fillText(footer,pad,H-12);
+
+  // Download or share
+  canvas.toBlob(function(blob){
+    const fname=(quotaId?"cuota_":"resumen_")+hoy()+".png";
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([blob],"img.png",{type:"image/png"})]})){
+      navigator.share({files:[new File([blob],fname,{type:"image/png"})],title:"Comité 4°B"});
+    } else {
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;a.download=fname;a.click();
+      URL.revokeObjectURL(url);
+      showToast("✓ Imagen descargada");
+    }
+  },"image/png");
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();ctx.fill();
+}
 
 function showToast(msg,type="ok"){const tc=document.getElementById("toast-container");tc.innerHTML=`<div class="toast ${type}">${msg}</div>`;setTimeout(()=>{tc.innerHTML="";},2400);}
 </script>
