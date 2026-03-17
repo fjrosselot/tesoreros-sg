@@ -278,6 +278,23 @@ input,select{font-family:'Roboto',sans-serif;}
 .money-display{position:relative;}
 .money-display input{padding-right:40px;}
 .money-display::after{content:attr(data-fmt);position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none;}
+
+/* ── Log ── */
+.log-row{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);align-items:flex-start;}
+.log-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.log-desc{flex:1;font-size:13px;line-height:1.4;}
+.log-time{font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0;}
+.log-del{background:transparent;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:0 2px;flex-shrink:0;}
+.log-del:hover{color:var(--red);}
+
+/* ── Búsqueda ── */
+.search-box{width:100%;padding:11px 14px 11px 38px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;margin-bottom:12px;font-family:'Roboto',sans-serif;}
+.search-wrap{position:relative;margin-bottom:4px;}
+.search-wrap::before{content:"🔍";position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;}
+
+/* ── Lote ── */
+.lote-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--navy-dim);border:1px solid rgba(45,91,227,.3);border-radius:var(--r);margin-bottom:10px;}
+.lote-check{width:18px;height:18px;accent-color:var(--navy);flex-shrink:0;cursor:pointer;}
 </style>
 <script>
   const _FB_URL = "https://bsg-7772d-default-rtdb.firebaseio.com/comite4b";
@@ -374,6 +391,9 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="nav-btn" id="nav-morosos" onclick="switchTab('morosos')">
         <span class="n-icon">⚠️</span> Morosos
       </button>
+      <button class="nav-btn" id="nav-log" onclick="switchTab('log')">
+        <span class="n-icon">📜</span> Log
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="sidebar-exit" onclick="doLogout()">🚪 Cerrar sesión</button>
@@ -424,6 +444,9 @@ input,select{font-family:'Roboto',sans-serif;}
     <button class="tab-btn" id="tab-morosos" onclick="switchTab('morosos')">
       <span class="tab-icon">⚠️</span><span class="tab-label">Morosos</span>
     </button>
+    <button class="tab-btn" id="tab-log" onclick="switchTab('log')">
+      <span class="tab-icon">📜</span><span class="tab-label">Log</span>
+    </button>
   </div>
 </div>
 
@@ -438,7 +461,7 @@ const isDesktop=()=>window.innerWidth>=768;
 function uid(){return Math.random().toString(36).slice(2,10);}
 function fmt(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
 function hoy(){return new Date().toISOString().slice(0,10);}
-function blankState(){return{students:INIT_STUDENTS.map((name,i)=>({id:"s"+i,name})),quotas:[],payments:[],expenses:[]};}
+function blankState(){return{students:INIT_STUDENTS.map((name,i)=>({id:"s"+i,name})),quotas:[],payments:[],expenses:[],log:[]};}
 function mergeState(val){
   var b=blankState();
   if(!val) return b;
@@ -446,10 +469,21 @@ function mergeState(val){
     students: Array.isArray(val.students) ? val.students : b.students,
     quotas:   Array.isArray(val.quotas)   ? val.quotas   : [],
     payments: Array.isArray(val.payments) ? val.payments : [],
-    expenses: Array.isArray(val.expenses) ? val.expenses : []
+    expenses: Array.isArray(val.expenses) ? val.expenses : [],
+    log:      Array.isArray(val.log)      ? val.log      : []
   };
 }
 function saveData(){if(window._fbSave)window._fbSave(state);}
+function addLog(icon,desc){
+  if(!state.log)state.log=[];
+  const ts=new Date().toISOString();
+  state.log.unshift({id:uid(),icon,desc,ts});
+  if(state.log.length>200)state.log=state.log.slice(0,200); // cap at 200 entries
+}
+function fmtTs(ts){
+  const d=new Date(ts);
+  return d.toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit"})+' '+d.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
+}
 
 document.getElementById("pin-input").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
 
@@ -506,6 +540,7 @@ const TAB_META={
   gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="openAddExpense()">＋ Registrar gasto</button>'},
   alumnos:{title:"Alumnos",sub:"Lista de 4°B",action:'<button class="primary-btn" onclick="openAddStudent()">＋ Alumno</button>'},
   morosos:{title:"Morosos",sub:"Alumnos con saldo pendiente",action:null},
+  log:{title:"Log de movimientos",sub:"Historial de todas las acciones",action:null},
 };
 
 function switchTab(t){
@@ -525,6 +560,7 @@ function getContent(){
   if(currentTab==="gastos")return renderGastos();
   if(currentTab==="alumnos")return renderAlumnos();
   if(currentTab==="morosos")return renderMorosos();
+  if(currentTab==="log")return renderLog();
   return "";
 }
 
@@ -616,21 +652,38 @@ function renderPagos(){
   html+=`<button class="pill new-pill" onclick="openAddQuota()">＋ Nueva</button></div>`;
   if(!q){html+=`<div class="empty">Crea una cuota para empezar</div>`;return html;}
   const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
-  html+=`<div class="card" style="margin-bottom:14px"><div class="card-top"><div style="flex:1;margin-right:8px"><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} por alumno · ${q.date}</div></div>
+
+  // Header card
+  html+=`<div class="card" style="margin-bottom:12px"><div class="card-top"><div style="flex:1;margin-right:8px"><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} por alumno · ${q.date}</div></div>
     <div style="display:flex;gap:6px;flex-shrink:0">
+      <button class="icon-btn" title="Marcar en lote" onclick="toggleLote()" style="${pagosLoteMode?"background:var(--navy);color:#fff;border-color:var(--navy)":""}">☑</button>
       <button class="icon-btn" onclick="openEditQuota('${q.id}')">✏️</button>
       <button class="icon-btn" onclick="deleteQuota('${q.id}')">🗑️</button>
     </div></div>
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
     <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span></div></div>`;
 
-  const wrap=isDesktop()?`<div class="s-row-grid">`:"";
-  const wrapEnd=isDesktop()?`</div>`:"";
+  // Lote bar
+  if(pagosLoteMode){
+    html+=`<div class="lote-bar">
+      <span style="font-size:13px;color:var(--navy-light);font-weight:500">Modo lote — selecciona y registra</span>
+      <button class="primary-btn" onclick="saveLote('${q.id}')">Registrar pagos</button>
+    </div>`;
+  }
+
+  // Search box
+  html+=`<div class="search-wrap"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${pagosSearch}" oninput="pagosSearch=this.value;renderInPlace()"></div>`;
+
+  // Students
+  const searchLow=pagosSearch.toLowerCase();
+  const wrap=isDesktop()&&!pagosLoteMode?`<div class="s-row-grid">`:"";
+  const wrapEnd=isDesktop()&&!pagosLoteMode?`</div>`:"";
   html+=wrap;
   state.students.forEach(s=>{
+    if(searchLow&&!s.name.toLowerCase().includes(searchLow))return;
     const inQuota=isInQuota(s.id,q);
     if(!inQuota){
-      html+=`<div class="s-row" style="opacity:.35;cursor:default">
+      html+=`<div class="s-row" style="opacity:.3;cursor:default">
         <div class="s-dot" style="background:#2e3a55;border:2px dashed #334155"></div>
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div></div>
         <div class="s-status" style="color:#475569;font-size:11px">No aplica</div>
@@ -643,17 +696,62 @@ function renderPagos(){
     const dotColor=paid?"#3dd68c":isPart?"#f5c842":"#2e3a55";
     const stColor=paid?"#3dd68c":isPart?"#f5c842":"#7a85a0";
     const stText=paid?"✓ Pagado":isPart?fmt(partial):"Pendiente";
-    html+=`<button class="s-row" onclick="openPayment('${s.id}','${q.id}')">
-      <div class="s-dot" style="background:${dotColor}"></div>
-      <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(q.amount-partial)}</div>`:""}</div>
-      <div class="s-status" style="color:${stColor}">${stText}</div>
-    </button>`;
+
+    if(pagosLoteMode&&!paid){
+      html+=`<div class="s-row" style="cursor:default">
+        <input type="checkbox" class="lote-check" id="lote-${s.id}">
+        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
+        <div class="s-status" style="color:${stColor}">${stText}</div>
+      </div>`;
+    } else {
+      html+=`<button class="s-row" onclick="openPayment('${s.id}','${q.id}')">
+        <div class="s-dot" style="background:${dotColor}"></div>
+        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(q.amount-partial)}</div>`:""}</div>
+        <div class="s-status" style="color:${stColor}">${stText}</div>
+      </button>`;
+    }
   });
   html+=wrapEnd;
   return html;
 }
-function selPagosQuota(id){pagosSelQuota=id;render();}
-function deleteQuota(id){const q=state.quotas.find(x=>x.id===id);if(!confirm("¿Eliminar \""+q.name+"\"?"))return;state.quotas=state.quotas.filter(x=>x.id!==id);state.payments=state.payments.filter(p=>p.quotaId!==id);if(pagosSelQuota===id)pagosSelQuota=state.quotas[0]?.id||null;saveData();render();showToast("Cuota eliminada");}
+function selPagosQuota(id){pagosSelQuota=id;pagosSearch="";pagosLoteMode=false;render();}
+function toggleLote(){pagosLoteMode=!pagosLoteMode;render();}
+function renderInPlace(){
+  // Re-render content without losing focus
+  const html=getContent();
+  if(isDesktop()){document.getElementById("content-desk").innerHTML=html;}
+  else{document.getElementById("content-mob").innerHTML=html;}
+  // Restore focus to search
+  const s=document.querySelector(".search-box");
+  if(s){s.focus();s.setSelectionRange(s.value.length,s.value.length);}
+}
+function saveLote(qid){
+  const q=state.quotas.find(x=>x.id===qid);
+  const checked=state.students.filter(s=>{
+    const el=document.getElementById("lote-"+s.id);
+    return el&&el.checked;
+  });
+  if(!checked.length){showToast("Selecciona al menos un alumno","err");return;}
+  const date=hoy();
+  let count=0;
+  checked.forEach(s=>{
+    if(!isPaid(s.id,qid)){
+      const partial=getSP(s.id,qid).reduce((x,p)=>x+p.amount,0);
+      const rem=q.amount-partial;
+      if(rem>0){
+        state.payments.push({id:uid(),studentId:s.id,quotaId:qid,amount:rem,date,note:"Pago en lote"});
+        count++;
+      }
+    }
+  });
+  if(count>0){
+    addLog("☑️",`Pago en lote: ${count} alumnos pagaron "${q.name}" — ${fmt(q.amount)} c/u`);
+    saveData();pagosLoteMode=false;render();showToast(`✓ ${count} pagos registrados`);
+  } else {
+    showToast("Todos ya están pagados","err");
+  }
+}
+function deleteQuota(id){const q=state.quotas.find(x=>x.id===id);if(!confirm("¿Eliminar \""+q.name+"\"?"))return;addLog("🗑️",`Cuota eliminada: "${q.name}"`);state.quotas=state.quotas.filter(x=>x.id!==id);state.payments=state.payments.filter(p=>p.quotaId!==id);if(pagosSelQuota===id)pagosSelQuota=state.quotas[0]?.id||null;saveData();render();showToast("Cuota eliminada");}
 
 function renderGastos(){
   const cats=[...new Set(state.expenses.map(e=>e.category))];
@@ -677,7 +775,7 @@ function renderGastos(){
   html+=`</div>`;return html;
 }
 function selGastosCat(c){gastosSelCat=c;render();}
-function deleteExpense(id){const e=state.expenses.find(x=>x.id===id);if(!confirm("¿Eliminar \""+e.name+"\"?"))return;state.expenses=state.expenses.filter(x=>x.id!==id);saveData();render();showToast("Gasto eliminado");}
+function deleteExpense(id){const e=state.expenses.find(x=>x.id===id);if(!confirm("¿Eliminar \""+e.name+"\"?"))return;addLog("🗑️",`Gasto eliminado: "${e.name}" — ${fmt(e.amount)}`);state.expenses=state.expenses.filter(x=>x.id!==id);saveData();render();showToast("Gasto eliminado");}
 
 function renderAlumnos(){
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span style="color:var(--muted);font-size:13px">👥 ${state.students.length} alumnos</span>${!isDesktop()?'<button class="primary-btn" onclick="openAddStudent()">＋ Alumno</button>':''}</div>`;
@@ -752,12 +850,13 @@ function saveAddQuota(){
     if(studentIds.length===0)return; // nothing selected
   }
   state.quotas.push({id:uid(),name,amount,date,studentIds});
+  addLog("📋",`Cuota creada: "${name}" — ${fmt(amount)} (${studentIds.length>0?studentIds.length+' alumnos':'todos'})`);
   saveData();closeSheet();render();showToast("✓ Cuota creada");
 }
 function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+field("Fecha","f-date","","date",q.date),"saveEditQuota('"+id+"')");}
-function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
+function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);addLog("✏️",`Cuota editada: "${name}" — ${fmt(amount)}`);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
 function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
-function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});saveData();closeSheet();render();showToast("✓ Gasto registrado");}
+function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});addLog("🧾",`Gasto registrado: "${name}" — ${fmt(amount)} (${category})`);saveData();closeSheet();render();showToast("✓ Gasto registrado");}
 function openAddStudent(){openSheet("👤 Agregar alumno",field("Nombre (Apellido, Nombre)","f-name","ej: Soto Pérez, Florencia"),"saveAddStudent()");}
 function saveAddStudent(){const name=document.getElementById("f-name").value.trim();if(!name)return;state.students.push({id:uid(),name});saveData();closeSheet();render();showToast("✓ Alumno agregado");}
 
@@ -769,8 +868,25 @@ function openPayment(sid,qid){
   let formHtml=rem>0?moneyInput("Monto (falta "+fmt(rem)+")","f-amount","",rem)+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."):`<div class="pay-done">✅ Cuota completamente pagada</div>`;
   openSheet("💳 Registrar pago",`<div class="pay-header"><div class="pay-student">${s.name}</div><div class="pay-quota">${q.name} · ${fmt(q.amount)}</div></div>`+histHtml+formHtml,rem>0?"savePayment('"+sid+"','"+qid+"')":null);
 }
-function savePayment(sid,qid){const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;const note=document.getElementById("f-note")?.value.trim()||"";if(!amount)return;state.payments.push({id:uid(),studentId:sid,quotaId:qid,amount,date,note});saveData();closeSheet();render();showToast("✓ Pago registrado");}
-function deletePayment(pid,sid,qid){state.payments=state.payments.filter(x=>x.id!==pid);saveData();openPayment(sid,qid);showToast("Pago eliminado");}
+function savePayment(sid,qid){
+  const amount=getMoneyVal("f-amount");
+  const date=document.getElementById("f-date").value;
+  const note=document.getElementById("f-note")?.value.trim()||"";
+  if(!amount)return;
+  const s=state.students.find(x=>x.id===sid);
+  const q=state.quotas.find(x=>x.id===qid);
+  state.payments.push({id:uid(),studentId:sid,quotaId:qid,amount,date,note});
+  addLog("💳",`Pago registrado: ${s?.name} — ${fmt(amount)} en "${q?.name}"`);
+  saveData();closeSheet();render();showToast("✓ Pago registrado");
+}
+function deletePayment(pid,sid,qid){
+  const p=state.payments.find(x=>x.id===pid);
+  const s=state.students.find(x=>x.id===sid);
+  const q=state.quotas.find(x=>x.id===qid);
+  if(p)addLog("↩️",`Pago eliminado: ${s?.name} — ${fmt(p.amount)} en "${q?.name}"`);
+  state.payments=state.payments.filter(x=>x.id!==pid);
+  saveData();openPayment(sid,qid);showToast("Pago eliminado");
+}
 
 // ── MOROSOS ──────────────────────────────────────────────────
 function renderMorosos(){
@@ -885,6 +1001,33 @@ function getMoneyVal(id){
   if(el._rawValue!==undefined)return el._rawValue;
   return parseInt(el.value.replace(/\D/g,""))||0;
 }
+
+// ── LOG ──────────────────────────────────────────────────────
+function renderLog(){
+  const logs=state.log||[];
+  if(!logs.length) return `<div class="empty" style="padding:60px 0">📜 Sin movimientos registrados aún</div>`;
+  let html=`<div style="color:var(--muted);font-size:12px;margin-bottom:14px">${logs.length} movimientos registrados</div>`;
+  logs.forEach(l=>{
+    html+=`<div class="log-row">
+      <div class="log-icon">${l.icon||"•"}</div>
+      <div class="log-desc">${l.desc}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <div class="log-time">${fmtTs(l.ts)}</div>
+        <button class="log-del" onclick="deleteLog('${l.id}')" title="Eliminar entrada">✕</button>
+      </div>
+    </div>`;
+  });
+  return html;
+}
+function deleteLog(lid){
+  state.log=state.log.filter(x=>x.id!==lid);
+  saveData();render();
+}
+
+// ── BÚSQUEDA + LOTE en Pagos ─────────────────────────────────
+// pagosSearch global for persistence while tab open
+let pagosSearch="";
+let pagosLoteMode=false;
 
 function showToast(msg,type="ok"){const tc=document.getElementById("toast-container");tc.innerHTML=`<div class="toast ${type}">${msg}</div>`;setTimeout(()=>{tc.innerHTML="";},2400);}
 </script>
