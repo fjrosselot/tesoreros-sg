@@ -403,6 +403,7 @@ input,select{font-family:'Roboto',sans-serif;}
       </button>
     </nav>
     <div class="sidebar-footer">
+      <button class="sidebar-exit" id="desk-admin-btn" onclick="requireAdmin(function(){})" style="margin-bottom:4px">🔐 Modo Delegados</button>
       <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
     </div>
   </aside>
@@ -430,7 +431,7 @@ input,select{font-family:'Roboto',sans-serif;}
     </div>
     <div style="display:flex;gap:6px;align-items:center">
       <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">Delegados</span>
-      <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px">Público</span>
+      <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="requireAdmin(function(){})">🔐</span>
       <button class="exit-btn" id="mob-exit-btn" onclick="doLogout()">Salir</button>
     </div>
   </div>
@@ -526,6 +527,8 @@ function updateAdminUI(){
   if(badge) badge.style.display=isAdmin?"inline-flex":"none";
   var pubBadge=document.getElementById("pub-badge");
   if(pubBadge) pubBadge.style.display=isAdmin?"none":"inline-flex";
+  var adminBtn=document.getElementById("desk-admin-btn");
+  if(adminBtn) adminBtn.style.display=isAdmin?"none":"flex";
   // Show/hide log tab (admin only)
   ["tab-log","nav-log"].forEach(function(id){
     var el=document.getElementById(id);
@@ -996,14 +999,13 @@ function openAddQuota(){
     +'</div>';
   window._isDraft = false;
   window._quotaAllStudents = true;
-  openSheet("📋 Nueva cuota",
-    field("Nombre","f-name","ej: Asado fin de año")
+  var qBodyHtml = field("Nombre","f-name","ej: Asado fin de año")
     +moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")
     +field("Fecha","f-date","","date",hoy())
     +draftToggle
-    +allStudentsHTML,
-    "saveAddQuota()"
-  );
+    +allStudentsHTML;
+  document.getElementById("modal-container").innerHTML=`<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">📋 Nueva cuota</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">${qBodyHtml}</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" id="quota-save-btn">Guardar</button></div></div></div>`;
+  document.getElementById("quota-save-btn").addEventListener("click", saveAddQuota);
 }
 function qToggleAll(all){
   window._quotaAllStudents = all;
