@@ -395,8 +395,8 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="nav-btn" id="nav-alumnos" onclick="switchTab('alumnos')">
         <span class="n-icon">👥</span> Alumnos
       </button>
-      <button class="nav-btn" id="nav-morosos" onclick="switchTab('morosos')">
-        <span class="n-icon">⚠️</span> Morosos
+      <button class="nav-btn" id="nav-pendientes" onclick="switchTab('pendientes')">
+        <span class="n-icon">⚠️</span> Pendientes
       </button>
       <button class="nav-btn" id="nav-log" onclick="switchTab('log')">
         <span class="n-icon">📜</span> Log
@@ -452,8 +452,8 @@ input,select{font-family:'Roboto',sans-serif;}
     <button class="tab-btn" id="tab-alumnos" onclick="switchTab('alumnos')">
       <span class="tab-icon">👥</span><span class="tab-label">Alumnos</span>
     </button>
-    <button class="tab-btn" id="tab-morosos" onclick="switchTab('morosos')">
-      <span class="tab-icon">⚠️</span><span class="tab-label">Morosos</span>
+    <button class="tab-btn" id="tab-pendientes" onclick="switchTab('pendientes')">
+      <span class="tab-icon">⚠️</span><span class="tab-label">Pendientes</span>
     </button>
     <button class="tab-btn" id="tab-log" onclick="switchTab('log')">
       <span class="tab-icon">📜</span><span class="tab-label">Log</span>
@@ -606,16 +606,18 @@ const TAB_META={
   pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>'},
   gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>'},
   alumnos:{title:"Alumnos",sub:"Lista de 4°B",action:'<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>'},
-  morosos:{title:"Morosos",sub:"Alumnos con saldo pendiente",action:null},
+  pendientes:{title:"Pendientes",sub:"Familias con saldo pendiente",action:null},
   log:{title:"Log de movimientos",sub:"Historial de todas las acciones",action:null},
 };
 
 function switchTab(t){
+  // Block log tab in public mode
+  if(t==="log"&&!isAdmin){ showToast("Solo disponible en Modo Delegados","err"); return; }
   currentTab=t;
   // Reset search on tab change
   if(t!=="pagos") pagosSearch="";
   if(t!=="alumnos") alumnosSearch="";
-  if(t!=="morosos") morososSearch="";
+  if(t!=="pendientes") pendientesSearch="";
   if(t!=="gastos") gastosSearch="";
   // mobile
   document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
@@ -631,7 +633,7 @@ function getContent(){
   if(currentTab==="pagos")return renderPagos();
   if(currentTab==="gastos")return renderGastos();
   if(currentTab==="alumnos")return renderAlumnos();
-  if(currentTab==="morosos")return renderMorosos();
+  if(currentTab==="pendientes")return renderPendientes();
   if(currentTab==="log")return renderLog();
   return "";
 }
@@ -966,11 +968,14 @@ function openAddQuota(){
     + '<div id="q-student-list" style="display:none;max-height:240px;overflow-y:auto;margin-bottom:8px">'
     + state.students.map(s=>`<label style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" id="qsid-${s.id}" checked style="width:16px;height:16px;accent-color:var(--navy)"><span style="font-size:13px">${s.name}</span></label>`).join('')
     + '</div>'
-    // Modo de montos
-    + '<div class="field"><label>Modo de cobro</label><div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">'
-    + '<label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid var(--border2);cursor:pointer"><input type="radio" name="q-amt-mode" value="equal" checked onchange="qAmtMode(this.value)" style="accent-color:var(--navy)"><div><div style="font-size:13px;font-weight:500">Monto igual para todos</div><div style="font-size:11px;color:var(--muted)">Todos pagan el mismo monto base</div></div></label>'
-    + '<label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid var(--border2);cursor:pointer"><input type="radio" name="q-amt-mode" value="perperson" onchange="qAmtMode(this.value)" style="accent-color:var(--navy)"><div><div style="font-size:13px;font-weight:500">Múltiplo por personas</div><div style="font-size:11px;color:var(--muted)">Precio por persona × cantidad de personas por familia</div></div></label>'
-    + '<label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid var(--border2);cursor:pointer"><input type="radio" name="q-amt-mode" value="exceptions" onchange="qAmtMode(this.value)" style="accent-color:var(--navy)"><div><div style="font-size:13px;font-weight:500">Base + excepciones</div><div style="font-size:11px;color:var(--muted)">Monto base para todos, edita los que son distintos</div></div></label>'
+    // Modo de montos — pill selector
+    + '<div class="field">'
+    + '<label style="font-size:12px;color:var(--muted);margin-bottom:8px;display:block">Modo de cobro</label>'
+    + '<div style="display:flex;flex-direction:column;gap:6px">'
+    + '<button type="button" id="qmode-equal" onclick="qAmtMode(\'equal\')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r);border:1.5px solid var(--navy);background:var(--navy-dim);color:var(--text);text-align:left;cursor:pointer;width:100%"><span style="font-size:18px">💰</span><div><div style="font-size:13px;font-weight:600;color:var(--navy-light)">Monto igual para todos</div><div style="font-size:11px;color:var(--muted)">Todos pagan el mismo monto base</div></div></button>'
+    + '<button type="button" id="qmode-perperson" onclick="qAmtMode(\'perperson\')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text);text-align:left;cursor:pointer;width:100%"><span style="font-size:18px">👨‍👩‍👧</span><div><div style="font-size:13px;font-weight:500">Múltiplo por personas</div><div style="font-size:11px;color:var(--muted)">Precio por persona × cantidad de personas por familia</div></div></button>'
+    + '<button type="button" id="qmode-exceptions" onclick="qAmtMode(\'exceptions\')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text);text-align:left;cursor:pointer;width:100%"><span style="font-size:18px">✏️</span><div><div style="font-size:13px;font-weight:500">Base + excepciones</div><div style="font-size:11px;color:var(--muted)">Monto base para todos, edita los que son distintos</div></div></button>'
+    + '<input type="hidden" id="q-amt-mode-val" value="equal">'
     + '</div></div>'
     // Panel por personas
     + '<div id="q-perperson-panel" style="display:none"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
@@ -990,6 +995,7 @@ function openAddQuota(){
     +'<input type="hidden" id="q-is-draft" value="0">'
     +'</div>';
   window._isDraft = false;
+  window._quotaAllStudents = true;
   openSheet("📋 Nueva cuota",
     field("Nombre","f-name","ej: Asado fin de año")
     +moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")
@@ -998,7 +1004,6 @@ function openAddQuota(){
     +allStudentsHTML,
     "saveAddQuota()"
   );
-  window._quotaAllStudents = true;
 }
 function qToggleAll(all){
   window._quotaAllStudents = all;
@@ -1027,17 +1032,27 @@ function setDraft(on){
   }
 }
 function qAmtMode(mode){
+  // Update hidden input
+  var modeEl=document.getElementById("q-amt-mode-val");
+  if(modeEl) modeEl.value=mode;
+  // Update pill styles
+  ["equal","perperson","exceptions"].forEach(function(m){
+    var btn=document.getElementById("qmode-"+m);
+    if(!btn) return;
+    var active=m===mode;
+    btn.style.border=active?"1.5px solid var(--navy)":"1px solid var(--border2)";
+    btn.style.background=active?"var(--navy-dim)":"transparent";
+    var title=btn.querySelector("div div:first-child");
+    if(title) title.style.color=active?"var(--navy-light)":"var(--text)";
+  });
+  // Show/hide panels
   document.getElementById("q-perperson-panel").style.display=mode==="perperson"?"block":"none";
   document.getElementById("q-exceptions-panel").style.display=mode==="exceptions"?"block":"none";
   if(mode==="exceptions"){
-    // Pre-fill all exception inputs with base amount
     const base=getMoneyVal("f-amount");
     state.students.forEach(function(s){
       var el=document.getElementById("qexc-"+s.id);
-      if(el&&base>0){
-        el.value=fmtNum(base);
-        el._rawValue=base;
-      }
+      if(el&&base>0){ el.value=fmtNum(base); el._rawValue=base; }
     });
   }
 }
@@ -1068,7 +1083,7 @@ function saveAddQuota(){
   if(!name||!amount)return;
   let studentIds=[];
   let amounts={};
-  const amtMode=document.querySelector('input[name="q-amt-mode"]:checked')?.value||"equal";
+  const amtMode=document.getElementById("q-amt-mode-val")?.value||"equal";
   if(!window._quotaAllStudents){
     studentIds=state.students.filter(s=>document.getElementById("qsid-"+s.id)?.checked).map(s=>s.id);
     if(studentIds.length===0)return;
@@ -1135,7 +1150,7 @@ function deletePayment(pid,sid,qid){
 }
 
 // ── MOROSOS ──────────────────────────────────────────────────
-function renderMorosos(){
+function renderPendientes(){
   const morosos = state.students.map(s=>{
     const desglose = state.quotas
       .filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id))
@@ -1150,11 +1165,11 @@ function renderMorosos(){
 
   if(!morosos.length) return `<div class="empty" style="padding:60px 0">🎉 No hay morosos — todos al día</div>`;
 
-  let html=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar moroso..." value="${morososSearch}" oninput="filterMorosos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
+  let html=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar moroso..." value="${pendientesSearch}" oninput="filterPendientes(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   html+=`<div style="color:var(--muted);font-size:12px;margin-bottom:10px">${morosos.length} alumnos con saldo pendiente</div>`;
   html+=`<div id="morosos-list">`;
   morosos.forEach((s,i)=>{
-    const hidden=morososSearch&&!s.name.toLowerCase().includes(morososSearch.toLowerCase())?"display:none;":"";
+    const hidden=pendientesSearch&&!s.name.toLowerCase().includes(pendientesSearch.toLowerCase())?"display:none;":"";
     html+=`<div class="moroso-card" data-mname="${s.name.toLowerCase()}" style="${hidden}" onclick="openFicha('${s.id}')">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
@@ -1175,8 +1190,8 @@ function renderMorosos(){
   html+=`</div>`;
   return html;
 }
-function filterMorosos(val){
-  morososSearch=val;
+function filterPendientes(val){
+  pendientesSearch=val;
   const low=val.toLowerCase();
   document.querySelectorAll("#morosos-list [data-mname]").forEach(function(r){
     r.style.display=(!low||r.dataset.mname.includes(low))?"":"none";
@@ -1287,7 +1302,7 @@ let pagosSearch="";
 let pagosLoteMode=false;
 let pagosFiltro="todos"; // todos | pagados | pendientes
 let alumnosSearch="";
-let morososSearch="";
+let pendientesSearch="";
 let gastosSearch="";
 
 function showToast(msg,type="ok"){const tc=document.getElementById("toast-container");tc.innerHTML=`<div class="toast ${type}">${msg}</div>`;setTimeout(()=>{tc.innerHTML="";},2400);}
