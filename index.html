@@ -256,10 +256,9 @@ input,select{font-family:'Roboto',sans-serif;}
   .toast{bottom:24px;}
 }
 </style>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
   const firebaseConfig = {
     apiKey: "AIzaSyCKNmeDsuSDBmwn5adL-E1WgXTHbox0hss",
     authDomain: "bsg-7772d.firebaseapp.com",
@@ -269,19 +268,17 @@ input,select{font-family:'Roboto',sans-serif;}
     messagingSenderId: "322702516625",
     appId: "1:322702516625:web:1558c85673ebf8fe00fa30"
   };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  firebase.initializeApp(firebaseConfig);
+  const _db = firebase.database();
   const DB_REF = "comite4b";
 
   window._fbSave = function(state) {
-    set(ref(db, DB_REF), state).catch(e => console.error("Firebase save error:", e));
+    _db.ref(DB_REF).set(state).catch(e => console.error("Firebase save error:", e));
   };
 
   window._fbListen = function(callback) {
-    onValue(ref(db, DB_REF), snap => {
-      const val = snap.val();
-      callback(val);
+    _db.ref(DB_REF).on("value", snap => {
+      callback(snap.val());
     });
   };
 </script>
