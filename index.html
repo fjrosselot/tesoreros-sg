@@ -1392,158 +1392,169 @@ function handleRestoreFile(input){
 function shareImage(quotaId){
   const canvas=document.getElementById("share-canvas");
   const ctx=canvas.getContext("2d");
-  const W=800, pad=40;
+  const W=900, pad=36, col=2, gap=12;
+  const colW=(W-pad*2-gap)/2;
+  const rowH=30, font="13px Roboto,Arial,sans-serif", fontB="bold 13px Roboto,Arial,sans-serif";
 
-  // Gather data
-  let lines=[];
-  let title="";
-  let subtitle="";
+  // ── Collect data ──
+  let title,subtitle,stats=[],sections=[];
 
   if(quotaId){
-    // Single quota view
     const q=state.quotas.find(x=>x.id===quotaId);
     if(!q)return;
     const qs=getQuotaStudents(q);
-    const paidList=qs.filter(s=>isPaid(s.id,q.id));
-    const pendList=qs.filter(s=>!isPaid(s.id,q.id));
+    const paidList=[...qs.filter(s=>isPaid(s.id,q.id))].sort((a,b)=>a.name.localeCompare(b.name));
+    const pendList=[...qs.filter(s=>!isPaid(s.id,q.id))].sort((a,b)=>a.name.localeCompare(b.name));
     const collected=state.payments.filter(p=>p.quotaId===q.id).reduce((s,p)=>s+p.amount,0);
     const expected=qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
     title=q.name;
-    subtitle=fmt(q.amount)+" · "+q.date;
-    lines=[
-      {type:"stat", label:"✓ Pagaron", value:paidList.length+"/"+qs.length, color:"#3dd68c"},
-      {type:"stat", label:"💰 Recaudado", value:fmt(collected), color:"#3dd68c"},
-      {type:"stat", label:"⏳ Pendiente", value:fmt(expected-collected), color:"#f16060"},
-      {type:"divider"},
-      {type:"section", label:"⏳ Pendientes ("+pendList.length+")"},
-      ...pendList.map(s=>{
-        const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
-        const sAmt=getStudentAmount(s.id,q);
-        return {type:"row", name:s.name, value:partial>0?"Abonó "+fmt(partial)+" · falta "+fmt(sAmt-partial):"Debe "+fmt(sAmt), color:"#f16060"};
-      }),
-      {type:"section", label:"✓ Pagaron ("+paidList.length+")"},
-      ...paidList.map(s=>({type:"row", name:s.name, value:"✓ Pagado", color:"#3dd68c"})),
+    subtitle=fmt(q.amount)+" por alumno  ·  "+q.date;
+    stats=[
+      {label:"Pagaron",value:paidList.length+"/"+qs.length,color:"#3dd68c"},
+      {label:"Recaudado",value:fmt(collected),color:"#3dd68c"},
+      {label:"Por cobrar",value:fmt(expected-collected),color:"#f16060"},
+      {label:"Total esperado",value:fmt(expected),color:"#5b82f0"},
+    ];
+    sections=[
+      {title:"⏳ PENDIENTES ("+pendList.length+")", color:"#f16060",
+       rows:pendList.map(s=>{
+         const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
+         const sAmt=getStudentAmount(s.id,q);
+         const note=partial>0?"  (abonó "+fmt(partial)+")":"";
+         return {name:s.name,note,color:"#f16060"};
+       })},
+      {title:"✓ PAGARON ("+paidList.length+")", color:"#3dd68c",
+       rows:paidList.map(s=>({name:s.name,note:"",color:"#3dd68c"}))},
     ];
   } else {
-    // General summary
     const tot=state.payments.reduce((s,p)=>s+p.amount,0);
     const gas=state.expenses.reduce((s,e)=>s+e.amount,0);
     const activeQ=state.quotas.filter(q=>!q.draft);
     const porRecaudar=activeQ.reduce((sum,q)=>{
       const qs=getQuotaStudents(q);
-      const collected=state.payments.filter(p=>p.quotaId===q.id).reduce((s,p)=>s+p.amount,0);
-      const expected=qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
-      return sum+(expected-collected);
+      const col2=state.payments.filter(p=>p.quotaId===q.id).reduce((s,p)=>s+p.amount,0);
+      return sum+qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0)-col2;
     },0);
     title="Comité 4°B — Saint George's";
-    subtitle="Estado del fondo · "+hoy();
-    lines=[
-      {type:"stat", label:"💰 Recaudado", value:fmt(tot), color:"#3dd68c"},
-      {type:"stat", label:"📥 Por recaudar", value:fmt(porRecaudar), color:"#5b82f0"},
-      {type:"stat", label:"🧾 Gastos", value:fmt(gas), color:"#f5c842"},
-      {type:"stat", label:"⚖️ Balance", value:fmt(tot-gas), color:tot-gas>=0?"#3dd68c":"#f16060"},
-      {type:"divider"},
-      ...activeQ.map(q=>{
-        const st=qStats(q.id);
-        const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
-        return {type:"quota", name:q.name, pct, paid:st.paid, total:st.total, collected:st.collected};
-      }),
+    subtitle="Estado del fondo  ·  "+hoy();
+    stats=[
+      {label:"Recaudado",value:fmt(tot),color:"#3dd68c"},
+      {label:"Por recaudar",value:fmt(porRecaudar),color:"#5b82f0"},
+      {label:"Gastos",value:fmt(gas),color:"#f5c842"},
+      {label:"Balance actual",value:fmt(tot-gas),color:tot-gas>=0?"#3dd68c":"#f16060"},
     ];
+    // One section per active quota
+    sections=activeQ.map(q=>{
+      const st=qStats(q.id);
+      const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
+      return {title:q.name.toUpperCase()+" — "+pct+"%", color:"#5b82f0", quota:{st,pct,q},
+        rows:[]};
+    });
   }
 
-  // Calculate height
-  let H=pad*2+80+40; // header
-  lines.forEach(l=>{
-    if(l.type==="stat") H+=44;
-    else if(l.type==="divider") H+=20;
-    else if(l.type==="section") H+=36;
-    else if(l.type==="row") H+=34;
-    else if(l.type==="quota") H+=52;
-  });
-  H=Math.max(H,300);
-
-  canvas.width=W;
-  canvas.height=H;
-
-  // Background
-  ctx.fillStyle="#0f1117";
-  ctx.fillRect(0,0,W,H);
-
-  // Header card
-  ctx.fillStyle="#181c26";
-  roundRect(ctx,pad,pad,W-pad*2,80,12);
-  ctx.fillStyle="#eef0f5";
-  ctx.font="bold 22px Roboto, Arial, sans-serif";
-  ctx.fillText(title,pad+16,pad+32);
-  ctx.fillStyle="#7a85a0";
-  ctx.font="14px Roboto, Arial, sans-serif";
-  ctx.fillText(subtitle,pad+16,pad+56);
-
-  let y=pad+80+16;
-
-  lines.forEach(l=>{
-    if(l.type==="stat"){
-      ctx.fillStyle="#181c26";
-      roundRect(ctx,pad,y,W-pad*2,36,8);
-      ctx.fillStyle="#7a85a0";
-      ctx.font="13px Roboto, Arial, sans-serif";
-      ctx.fillText(l.label,pad+12,y+23);
-      ctx.fillStyle=l.color||"#eef0f5";
-      ctx.font="bold 14px Roboto, Arial, sans-serif";
-      const vw=ctx.measureText(l.value).width;
-      ctx.fillText(l.value,W-pad-12-vw,y+23);
-      y+=44;
-    } else if(l.type==="divider"){
-      ctx.strokeStyle="#252d42";
-      ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(pad,y+8);ctx.lineTo(W-pad,y+8);ctx.stroke();
-      y+=20;
-    } else if(l.type==="section"){
-      ctx.fillStyle="#7a85a0";
-      ctx.font="bold 12px Roboto, Arial, sans-serif";
-      ctx.fillText(l.label.toUpperCase(),pad,y+20);
-      y+=36;
-    } else if(l.type==="row"){
-      ctx.fillStyle="#181c26";
-      roundRect(ctx,pad,y,W-pad*2,26,6);
-      ctx.fillStyle="#eef0f5";
-      ctx.font="12px Roboto, Arial, sans-serif";
-      ctx.fillText(l.name,pad+10,y+18);
-      ctx.fillStyle=l.color||"#7a85a0";
-      ctx.font="12px Roboto, Arial, sans-serif";
-      const vw=ctx.measureText(l.value).width;
-      ctx.fillText(l.value,W-pad-10-vw,y+18);
-      y+=34;
-    } else if(l.type==="quota"){
-      ctx.fillStyle="#181c26";
-      roundRect(ctx,pad,y,W-pad*2,44,8);
-      ctx.fillStyle="#eef0f5";
-      ctx.font="bold 13px Roboto, Arial, sans-serif";
-      ctx.fillText(l.name,pad+12,y+18);
-      ctx.fillStyle="#7a85a0";
-      ctx.font="11px Roboto, Arial, sans-serif";
-      ctx.fillText(l.paid+"/"+l.total+" pagaron · "+fmt(l.collected),pad+12,y+34);
-      // Progress bar
-      const bx=W-pad-160,bw=150,bh=6,by=y+19;
-      ctx.fillStyle="#252d42";
-      roundRect(ctx,bx,by,bw,bh,3);
-      ctx.fillStyle=l.pct===100?"#3dd68c":"#2d5be3";
-      roundRect(ctx,bx,by,Math.max(bw*(l.pct/100),l.pct>0?4:0),bh,3);
-      ctx.fillStyle=l.pct===100?"#3dd68c":"#7a85a0";
-      ctx.font="bold 12px Roboto, Arial, sans-serif";
-      const pw=ctx.measureText(l.pct+"%").width;
-      ctx.fillText(l.pct+"%",bx-pw-8,by+bh);
-      y+=52;
+  // ── Calculate height ──
+  const headerH=90, statsH=64, divH=20;
+  let bodyH=0;
+  sections.forEach(sec=>{
+    bodyH+=32; // section title
+    if(sec.quota){bodyH+=44;}  // quota bar
+    else {
+      const nrows=sec.rows.length;
+      bodyH+=Math.ceil(nrows/col)*rowH+8;
     }
+    bodyH+=16; // spacing
+  });
+  const H=pad*2+headerH+16+statsH+divH+bodyH+28;
+
+  canvas.width=W; canvas.height=H;
+
+  // ── Background ──
+  ctx.fillStyle="#0f1117"; ctx.fillRect(0,0,W,H);
+
+  // ── Header ──
+  ctx.fillStyle="#181c26"; roundRect(ctx,pad,pad,W-pad*2,headerH,12);
+  ctx.fillStyle="#eef0f5"; ctx.font="bold 24px Roboto,Arial,sans-serif";
+  ctx.fillText(title,pad+16,pad+34);
+  ctx.fillStyle="#7a85a0"; ctx.font="14px Roboto,Arial,sans-serif";
+  ctx.fillText(subtitle,pad+16,pad+60);
+  // School badge
+  ctx.fillStyle="rgba(45,91,227,.2)"; roundRect(ctx,W-pad-70,pad+16,60,28,8);
+  ctx.fillStyle="#5b82f0"; ctx.font="bold 11px Roboto,Arial,sans-serif";
+  ctx.fillText("4°B SGC",W-pad-68+4,pad+35);
+
+  let y=pad+headerH+16;
+
+  // ── Stats grid (2x2) ──
+  const sw=(W-pad*2-gap*3)/4;
+  stats.forEach((s,i)=>{
+    const sx=pad+i*(sw+gap);
+    ctx.fillStyle="#181c26"; roundRect(ctx,sx,y,sw,statsH-4,8);
+    ctx.fillStyle=s.color; ctx.font="bold 16px Roboto,Arial,sans-serif";
+    const vw=ctx.measureText(s.value).width;
+    ctx.fillText(s.value,sx+(sw-vw)/2,y+28);
+    ctx.fillStyle="#7a85a0"; ctx.font="11px Roboto,Arial,sans-serif";
+    const lw=ctx.measureText(s.label).width;
+    ctx.fillText(s.label,sx+(sw-lw)/2,y+48);
+  });
+  y+=statsH+divH;
+
+  // ── Sections ──
+  sections.forEach(sec=>{
+    // Section title
+    ctx.fillStyle=sec.color||"#7a85a0"; ctx.font="bold 11px Roboto,Arial,sans-serif";
+    ctx.fillText(sec.title,pad,y+14);
+    y+=32;
+
+    if(sec.quota){
+      // Quota progress bar card
+      const {st,pct,q}=sec.quota;
+      ctx.fillStyle="#181c26"; roundRect(ctx,pad,y,W-pad*2,36,8);
+      ctx.fillStyle="#eef0f5"; ctx.font=fontB;
+      ctx.fillText(st.paid+"/"+st.total+" pagaron",pad+12,y+14);
+      ctx.fillStyle="#7a85a0"; ctx.font=font;
+      ctx.fillText(fmt(st.collected)+" recaudado",pad+12,y+28);
+      const bx=W-pad-220,bw=200,bh=8,by=y+14;
+      ctx.fillStyle="#252d42"; roundRect(ctx,bx,by,bw,bh,4);
+      ctx.fillStyle=pct===100?"#3dd68c":"#2d5be3";
+      roundRect(ctx,bx,by,Math.max(bw*(pct/100),pct>0?4:0),bh,4);
+      ctx.fillStyle=pct===100?"#3dd68c":"#eef0f5"; ctx.font="bold 12px Roboto,Arial,sans-serif";
+      ctx.fillText(pct+"%",bx+bw+8,by+bh);
+      y+=44;
+    } else if(sec.rows.length){
+      // 2-column grid of names
+      const rows=sec.rows;
+      for(let i=0;i<rows.length;i+=2){
+        const left=rows[i], right=rows[i+1];
+        // Left cell
+        ctx.fillStyle="#181c26"; roundRect(ctx,pad,y,colW,rowH-2,6);
+        ctx.fillStyle=left.color||"#eef0f5"; ctx.font=font;
+        // Truncate name if needed
+        let name=left.name;
+        while(ctx.measureText(name).width>colW-20&&name.length>10) name=name.slice(0,-2);
+        if(name!==left.name) name+="…";
+        ctx.fillText(name,pad+8,y+20);
+        if(left.note){ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";ctx.fillText(left.note,pad+8,y+30);}
+        // Right cell
+        if(right){
+          ctx.fillStyle="#181c26"; roundRect(ctx,pad+colW+gap,y,colW,rowH-2,6);
+          ctx.fillStyle=right.color||"#eef0f5"; ctx.font=font;
+          let rname=right.name;
+          while(ctx.measureText(rname).width>colW-20&&rname.length>10) rname=rname.slice(0,-2);
+          if(rname!==right.name) rname+="…";
+          ctx.fillText(rname,pad+colW+gap+8,y+20);
+          if(right.note){ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";ctx.fillText(right.note,pad+colW+gap+8,y+30);}
+        }
+        y+=rowH;
+      }
+    }
+    y+=16;
   });
 
-  // Footer
-  ctx.fillStyle="#323d57";
-  ctx.font="11px Roboto, Arial, sans-serif";
-  const footer="Generado por Comité 4°B · "+new Date().toLocaleString("es-CL");
-  ctx.fillText(footer,pad,H-12);
+  // ── Footer ──
+  ctx.fillStyle="#323d57"; ctx.font="11px Roboto,Arial,sans-serif";
+  ctx.fillText("Comité Delegados 4°B  ·  "+new Date().toLocaleString("es-CL"),pad,H-12);
 
-  // Download or share
+  // ── Share or download ──
   canvas.toBlob(function(blob){
     const fname=(quotaId?"cuota_":"resumen_")+hoy()+".png";
     if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([blob],"img.png",{type:"image/png"})]})){
@@ -1551,7 +1562,7 @@ function shareImage(quotaId){
     } else {
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a");
-      a.href=url;a.download=fname;a.click();
+      a.href=url; a.download=fname; a.click();
       URL.revokeObjectURL(url);
       showToast("✓ Imagen descargada");
     }
@@ -1559,6 +1570,8 @@ function shareImage(quotaId){
 }
 
 function roundRect(ctx,x,y,w,h,r){
+  if(w<=0||h<=0)return;
+  r=Math.min(r,w/2,h/2);
   ctx.beginPath();
   ctx.moveTo(x+r,y);
   ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
