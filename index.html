@@ -255,6 +255,29 @@ input,select{font-family:'Roboto',sans-serif;}
 @media(min-width:768px){
   .toast{bottom:24px;}
 }
+
+/* ── Morosos ── */
+.moroso-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px;cursor:pointer;}
+.moroso-card:active{opacity:.7;}
+.moroso-name{font-weight:600;font-size:14px;margin-bottom:8px;}
+.moroso-total{color:var(--red);font-weight:700;font-size:16px;}
+.moroso-desglose{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.moroso-item{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:3px 0;}
+
+/* ── Ficha alumno ── */
+.ficha-header{background:var(--surface2);border-radius:var(--r);padding:16px;margin-bottom:16px;text-align:center;}
+.ficha-name{font-size:18px;font-weight:700;margin-bottom:4px;}
+.ficha-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;}
+.ficha-stat{background:var(--bg);border-radius:8px;padding:10px;text-align:center;}
+.ficha-stat-val{font-size:15px;font-weight:700;}
+.ficha-stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;margin-top:2px;}
+.ficha-quota-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);}
+.ficha-note-area{width:100%;padding:12px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;resize:none;outline:none;font-family:'Roboto',sans-serif;min-height:80px;}
+
+/* ── Money input ── */
+.money-display{position:relative;}
+.money-display input{padding-right:40px;}
+.money-display::after{content:attr(data-fmt);position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none;}
 </style>
 <script>
   const _FB_URL = "https://bsg-7772d-default-rtdb.firebaseio.com/comite4b";
@@ -348,6 +371,9 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="nav-btn" id="nav-alumnos" onclick="switchTab('alumnos')">
         <span class="n-icon">👥</span> Alumnos
       </button>
+      <button class="nav-btn" id="nav-morosos" onclick="switchTab('morosos')">
+        <span class="n-icon">⚠️</span> Morosos
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="sidebar-exit" onclick="doLogout()">🚪 Cerrar sesión</button>
@@ -394,6 +420,9 @@ input,select{font-family:'Roboto',sans-serif;}
     </button>
     <button class="tab-btn" id="tab-alumnos" onclick="switchTab('alumnos')">
       <span class="tab-icon">👥</span><span class="tab-label">Alumnos</span>
+    </button>
+    <button class="tab-btn" id="tab-morosos" onclick="switchTab('morosos')">
+      <span class="tab-icon">⚠️</span><span class="tab-label">Morosos</span>
     </button>
   </div>
 </div>
@@ -476,6 +505,7 @@ const TAB_META={
   pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:'<button class="primary-btn" onclick="openAddQuota()">＋ Nueva cuota</button>'},
   gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="openAddExpense()">＋ Registrar gasto</button>'},
   alumnos:{title:"Alumnos",sub:"Lista de 4°B",action:'<button class="primary-btn" onclick="openAddStudent()">＋ Alumno</button>'},
+  morosos:{title:"Morosos",sub:"Alumnos con saldo pendiente",action:null},
 };
 
 function switchTab(t){
@@ -494,6 +524,7 @@ function getContent(){
   if(currentTab==="pagos")return renderPagos();
   if(currentTab==="gastos")return renderGastos();
   if(currentTab==="alumnos")return renderAlumnos();
+  if(currentTab==="morosos")return renderMorosos();
   return "";
 }
 
@@ -654,7 +685,7 @@ function renderAlumnos(){
   if(isDesk)html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
   state.students.forEach((s,i)=>{
     const owed=state.quotas.filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0);
-    html+=`<div class="alumno-row"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
+    html+=`<div class="alumno-row" style="cursor:pointer" onclick="openFicha('${s.id}')"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
         <button class="icon-btn" onclick="deleteStudent('${s.id}')">🗑️</button>
@@ -693,7 +724,7 @@ function openAddQuota(){
     + '</div>';
   openSheet("📋 Nueva cuota",
     field("Nombre","f-name","ej: Asado fin de año")
-    +field("Monto ($)","f-amount","ej: 5000","number")
+    +moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")
     +field("Fecha","f-date","","date",hoy())
     +allStudentsHTML,
     "saveAddQuota()"
@@ -712,7 +743,7 @@ function qToggleAll(all){
 }
 function saveAddQuota(){
   const name=document.getElementById("f-name").value.trim();
-  const amount=parseInt(document.getElementById("f-amount").value);
+  const amount=getMoneyVal("f-amount");
   const date=document.getElementById("f-date").value;
   if(!name||!amount)return;
   let studentIds=[];
@@ -723,10 +754,10 @@ function saveAddQuota(){
   state.quotas.push({id:uid(),name,amount,date,studentIds});
   saveData();closeSheet();render();showToast("✓ Cuota creada");
 }
-function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+field("Monto ($)","f-amount","","number",q.amount)+field("Fecha","f-date","","date",q.date),"saveEditQuota('"+id+"')");}
-function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=parseInt(document.getElementById("f-amount").value);const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
-function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+field("Monto ($)","f-amount","ej: 12000","number")+selectField("Categoría","f-cat",cats,"General")+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
-function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=parseInt(document.getElementById("f-amount").value);const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});saveData();closeSheet();render();showToast("✓ Gasto registrado");}
+function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+field("Fecha","f-date","","date",q.date),"saveEditQuota('"+id+"')");}
+function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
+function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
+function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});saveData();closeSheet();render();showToast("✓ Gasto registrado");}
 function openAddStudent(){openSheet("👤 Agregar alumno",field("Nombre (Apellido, Nombre)","f-name","ej: Soto Pérez, Florencia"),"saveAddStudent()");}
 function saveAddStudent(){const name=document.getElementById("f-name").value.trim();if(!name)return;state.students.push({id:uid(),name});saveData();closeSheet();render();showToast("✓ Alumno agregado");}
 
@@ -735,11 +766,125 @@ function openPayment(sid,qid){
   const ex=getSP(sid,qid);const psf=ex.reduce((x,p)=>x+p.amount,0);const rem=q.amount-psf;
   let histHtml="";
   if(ex.length){let rows="";ex.forEach(p=>{rows+=`<div class="pay-hist-row"><span style="color:var(--muted);flex:1">${p.date}</span><span style="font-weight:600">${fmt(p.amount)}</span><button class="del-pay" onclick="deletePayment('${p.id}','${sid}','${qid}')">✕</button></div>`;});histHtml=`<div class="pay-hist"><div class="pay-hist-label">Pagos registrados</div>${rows}<div class="pay-total-line">Pagado: ${fmt(psf)} · Saldo: ${fmt(Math.max(0,rem))}</div></div>`;}
-  let formHtml=rem>0?field("Monto (falta "+fmt(rem)+")","f-amount","","number",rem)+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."):`<div class="pay-done">✅ Cuota completamente pagada</div>`;
+  let formHtml=rem>0?moneyInput("Monto (falta "+fmt(rem)+")","f-amount","",rem)+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."):`<div class="pay-done">✅ Cuota completamente pagada</div>`;
   openSheet("💳 Registrar pago",`<div class="pay-header"><div class="pay-student">${s.name}</div><div class="pay-quota">${q.name} · ${fmt(q.amount)}</div></div>`+histHtml+formHtml,rem>0?"savePayment('"+sid+"','"+qid+"')":null);
 }
-function savePayment(sid,qid){const amount=parseInt(document.getElementById("f-amount").value);const date=document.getElementById("f-date").value;const note=document.getElementById("f-note")?.value.trim()||"";if(!amount)return;state.payments.push({id:uid(),studentId:sid,quotaId:qid,amount,date,note});saveData();closeSheet();render();showToast("✓ Pago registrado");}
+function savePayment(sid,qid){const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;const note=document.getElementById("f-note")?.value.trim()||"";if(!amount)return;state.payments.push({id:uid(),studentId:sid,quotaId:qid,amount,date,note});saveData();closeSheet();render();showToast("✓ Pago registrado");}
 function deletePayment(pid,sid,qid){state.payments=state.payments.filter(x=>x.id!==pid);saveData();openPayment(sid,qid);showToast("Pago eliminado");}
+
+// ── MOROSOS ──────────────────────────────────────────────────
+function renderMorosos(){
+  const morosos = state.students.map(s=>{
+    const desglose = state.quotas
+      .filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id))
+      .map(q=>{
+        const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
+        const falta=q.amount-partial;
+        return {name:q.name, falta, partial};
+      });
+    const owed=desglose.reduce((x,d)=>x+d.falta,0);
+    return {...s,owed,desglose};
+  }).filter(s=>s.owed>0).sort((a,b)=>b.owed-a.owed);
+
+  if(!morosos.length) return `<div class="empty" style="padding:60px 0">🎉 No hay morosos — todos al día</div>`;
+
+  let html=`<div style="color:var(--muted);font-size:12px;margin-bottom:14px">${morosos.length} alumnos con saldo pendiente</div>`;
+  morosos.forEach((s,i)=>{
+    html+=`<div class="moroso-card" onclick="openFicha('${s.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">#${i+1}</div>
+          <div class="moroso-name">${s.name}</div>
+        </div>
+        <div class="moroso-total">${fmt(s.owed)}</div>
+      </div>
+      <div class="moroso-desglose">
+        ${s.desglose.map(d=>`
+          <div class="moroso-item">
+            <span>${d.name}</span>
+            <span style="color:var(--red)">${fmt(d.falta)}${d.partial>0?` <span style="color:var(--muted);font-size:10px">(abonó ${fmt(d.partial)})</span>`:""}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  });
+  return html;
+}
+
+// ── FICHA ALUMNO ─────────────────────────────────────────────
+function openFicha(sid){
+  const s=state.students.find(x=>x.id===sid);
+  if(!s)return;
+
+  const totalPaid=state.payments.filter(p=>p.studentId===sid).reduce((x,p)=>x+p.amount,0);
+  const owed=state.quotas.filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0);
+  const quotasApply=state.quotas.filter(q=>isInQuota(s.id,q));
+  const quotasDone=quotasApply.filter(q=>isPaid(s.id,q.id)).length;
+  const note=s.note||"";
+
+  let quotasHtml="";
+  quotasApply.forEach(q=>{
+    const paid=isPaid(s.id,q.id);
+    const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
+    const isPart=partial>0&&!paid;
+    const dot=paid?"#3dd68c":isPart?"#f5c842":"#2e3a55";
+    const st=paid?"✓ Pagado":isPart?`Parcial ${fmt(partial)} / falta ${fmt(q.amount-partial)}`:"Pendiente";
+    const stColor=paid?"var(--green)":isPart?"var(--yellow)":"var(--muted)";
+    quotasHtml+=`<div class="ficha-quota-row">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0"></div>
+        <div>
+          <div style="font-size:13px;font-weight:500">${q.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmt(q.amount)}</div>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:${stColor}">${st}</div>
+    </div>`;
+  });
+
+  const body=`
+    <div class="ficha-header">
+      <div style="font-size:28px;margin-bottom:8px">👤</div>
+      <div class="ficha-name">${s.name}</div>
+      <div class="ficha-stats">
+        <div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--green)">${fmt(totalPaid)}</div><div class="ficha-stat-lbl">Pagado</div></div>
+        <div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--red)">${fmt(owed)}</div><div class="ficha-stat-lbl">Pendiente</div></div>
+        <div class="ficha-stat"><div class="ficha-stat-val">${quotasDone}/${quotasApply.length}</div><div class="ficha-stat-lbl">Cuotas</div></div>
+      </div>
+    </div>
+    ${quotasApply.length>0?`<div class="sec-title" style="margin-bottom:10px">Cuotas</div>${quotasHtml}`:""}
+    <div class="sec-title" style="margin:16px 0 8px">Notas</div>
+    <textarea class="ficha-note-area" id="ficha-note" placeholder="Agregar nota sobre este alumno...">${note}</textarea>`;
+
+  openSheet(`Ficha`, body, `saveFichaNota('${sid}')`);
+}
+function saveFichaNota(sid){
+  const note=document.getElementById("ficha-note").value.trim();
+  state.students=state.students.map(s=>s.id===sid?{...s,note}:s);
+  saveData();closeSheet();showToast("✓ Nota guardada");
+}
+
+// ── MONEY INPUT FORMATTING ────────────────────────────────────
+function moneyInput(label,id,placeholder,value=""){
+  return `<div class="field">
+    <label>${label}</label>
+    <input id="${id}" type="text" inputmode="numeric" placeholder="${placeholder||"ej: 5.000"}"
+      value="${value?fmtNum(value):""}"
+      oninput="formatMoneyInput(this)"
+      style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;">
+  </div>`;
+}
+function fmtNum(n){return new Intl.NumberFormat("es-CL").format(n);}
+function formatMoneyInput(el){
+  const raw=el.value.replace(/\D/g,"");
+  el.value=raw?fmtNum(parseInt(raw)):"";
+  el._rawValue=raw?parseInt(raw):0;
+}
+function getMoneyVal(id){
+  const el=document.getElementById(id);
+  if(!el)return 0;
+  if(el._rawValue!==undefined)return el._rawValue;
+  return parseInt(el.value.replace(/\D/g,""))||0;
+}
 
 function showToast(msg,type="ok"){const tc=document.getElementById("toast-container");tc.innerHTML=`<div class="toast ${type}">${msg}</div>`;setTimeout(()=>{tc.innerHTML="";},2400);}
 </script>
