@@ -1019,6 +1019,44 @@ function openSheet(titleStr,bodyHtml,onSave){
 function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
+
+function dateField(label,id,value=""){
+  // value is YYYY-MM-DD or empty
+  const parts=value?value.split("-"):["","",""];
+  const y=parts[0]||"", m=parts[1]||"", d=parts[2]||"";
+  const meses=["","Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const curY=new Date().getFullYear();
+  const years=[curY,curY-1,curY+1].sort((a,b)=>b-a);
+
+  const dayOpts=Array.from({length:31},(_,i)=>{
+    const v=String(i+1).padStart(2,"0");
+    return `<option value="${v}"${d===v?" selected":""}>${i+1}</option>`;
+  }).join("");
+  const monOpts=meses.map((name,i)=>{
+    if(i===0)return "";
+    const v=String(i).padStart(2,"0");
+    return `<option value="${v}"${m===v?" selected":""}>${name}</option>`;
+  }).join("");
+  const yrOpts=years.map(yr=>`<option value="${yr}"${String(y)===String(yr)?" selected":""}>${yr}</option>`).join("");
+
+  const sel="width:auto;flex:1;padding:10px 6px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif;cursor:pointer;";
+  return `<div class="field"><label>${label}</label>
+    <div style="display:flex;gap:6px">
+      <select id="${id}-d" style="${sel}" onchange="syncDate('${id}')"><option value="">Día</option>${dayOpts}</select>
+      <select id="${id}-m" style="${sel};flex:1.4" onchange="syncDate('${id}')"><option value="">Mes</option>${monOpts}</select>
+      <select id="${id}-y" style="${sel}" onchange="syncDate('${id}')"><option value="">Año</option>${yrOpts}</select>
+    </div>
+    <input type="hidden" id="${id}" value="${value}">
+  </div>`;
+}
+function syncDate(id){
+  const d=document.getElementById(id+"-d")?.value||"";
+  const m=document.getElementById(id+"-m")?.value||"";
+  const y=document.getElementById(id+"-y")?.value||"";
+  const el=document.getElementById(id);
+  if(el) el.value=(y&&m&&d)?y+"-"+m+"-d".replace("d",d):"";
+  if(el) el.value=(y&&m&&d)?y+"-"+m+"-"+d:"";
+}
 function selectField(label,id,opts,val){let s=`<div class="field"><label>${label}</label><select id="${id}">`;opts.forEach(o=>{s+=`<option${o===val?" selected":""}>${o}</option>`;});return s+`</select></div>`;}
 
 function openAddQuota(){
@@ -1064,7 +1102,7 @@ function openAddQuota(){
   window._quotaAllStudents = true;
   var qBodyHtml = field("Nombre","f-name","ej: Asado fin de año")
     +moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")
-    +field("Fecha","f-date","","date",hoy())
+    +dateField("Fecha","f-date",hoy())
     +draftToggle
     +allStudentsHTML;
   document.getElementById("modal-container").innerHTML=`<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">📋 Nueva cuota</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">${qBodyHtml}</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" id="quota-save-btn">Guardar</button></div></div></div>`;
@@ -1178,9 +1216,9 @@ function saveAddQuota(){
   addLog(isDraft?"📝":"📋",`Cuota ${isDraft?'(borrador)':''}creada: "${name}" — ${fmt(amount)} base`);
   saveData();closeSheet();render();showToast(isDraft?"✓ Borrador guardado":"✓ Cuota creada");
 }
-function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+field("Fecha","f-date","","date",q.date),"saveEditQuota('"+id+"')");}
+function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+dateField("Fecha","f-date",q.date),"saveEditQuota('"+id+"')");}
 function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);addLog("✏️",`Cuota editada: "${name}" — ${fmt(amount)}`);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
-function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
+function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
 function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});addLog("🧾",`Gasto registrado: "${name}" — ${fmt(amount)} (${category})`);saveData();closeSheet();render();showToast("✓ Gasto registrado");}
 function openAddStudent(){openSheet("👤 Agregar alumno",field("Nombre (Apellido, Nombre)","f-name","ej: Soto Pérez, Florencia"),"saveAddStudent()");}
 function saveAddStudent(){const name=document.getElementById("f-name").value.trim();if(!name)return;state.students.push({id:uid(),name});saveData();closeSheet();render();showToast("✓ Alumno agregado");}
@@ -1191,7 +1229,7 @@ function openPayment(sid,qid){
   const studentAmt=getStudentAmount(sid,q);const rem=studentAmt-psf;
   let histHtml="";
   if(ex.length){let rows="";ex.forEach(p=>{rows+=`<div class="pay-hist-row"><span style="color:var(--muted);flex:1">${p.date}</span><span style="font-weight:600">${fmt(p.amount)}</span><button class="del-pay" onclick="deletePayment('${p.id}','${sid}','${qid}')">✕</button></div>`;});histHtml=`<div class="pay-hist"><div class="pay-hist-label">Pagos registrados</div>${rows}<div class="pay-total-line">Pagado: ${fmt(psf)} · Saldo: ${fmt(Math.max(0,rem))}</div></div>`;}
-  let formHtml=rem>0?moneyInput("Monto (falta "+fmt(rem)+")","f-amount","",rem)+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."):`<div class="pay-done">✅ Cuota completamente pagada</div>`;
+  let formHtml=rem>0?moneyInput("Monto (falta "+fmt(rem)+")","f-amount","",rem)+dateField("Fecha","f-date",hoy())+field("Nota (opcional)","f-note","Detalle..."):`<div class="pay-done">✅ Cuota completamente pagada</div>`;
   openSheet("💳 Registrar pago",`<div class="pay-header"><div class="pay-student">${s.name}</div><div class="pay-quota">${q.name} · ${fmt(studentAmt)}</div></div>`+histHtml+formHtml,rem>0?"savePayment('"+sid+"','"+qid+"')":null);
 }
 function savePayment(sid,qid){
