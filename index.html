@@ -462,15 +462,21 @@ function uid(){return Math.random().toString(36).slice(2,10);}
 function fmt(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
 function hoy(){return new Date().toISOString().slice(0,10);}
 function blankState(){return{students:INIT_STUDENTS.map((name,i)=>({id:"s"+i,name})),quotas:[],payments:[],expenses:[],log:[]};}
+function toArr(v){
+  if(!v) return [];
+  if(Array.isArray(v)) return v;
+  // Firebase stores arrays as {0:{...}, 1:{...}} when saved via PUT
+  return Object.values(v);
+}
 function mergeState(val){
   var b=blankState();
   if(!val) return b;
   return {
-    students: Array.isArray(val.students) ? val.students : b.students,
-    quotas:   Array.isArray(val.quotas)   ? val.quotas   : [],
-    payments: Array.isArray(val.payments) ? val.payments : [],
-    expenses: Array.isArray(val.expenses) ? val.expenses : [],
-    log:      Array.isArray(val.log)      ? val.log      : []
+    students: toArr(val.students).length ? toArr(val.students) : b.students,
+    quotas:   toArr(val.quotas),
+    payments: toArr(val.payments),
+    expenses: toArr(val.expenses),
+    log:      toArr(val.log)
   };
 }
 function saveData(){if(window._fbSave)window._fbSave(state);}
@@ -671,8 +677,9 @@ function renderPagos(){
     </div>`;
   }
 
-  // Search box
-  html+=`<div class="search-wrap"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${pagosSearch}" oninput="pagosSearch=this.value;renderInPlace()"></div>`;
+  // Search box — use onchange+oninput, keep focus with id
+  html+=`<div class="search-wrap"><input class="search-box" id="pagos-search" type="text" placeholder="Buscar alumno..." value="${pagosSearch}" oninput="pagosSearch=this.value;renderInPlace()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
+  html+=`<div id="student-list-wrap">`;
 
   // Students
   const searchLow=pagosSearch.toLowerCase();
@@ -712,18 +719,43 @@ function renderPagos(){
     }
   });
   html+=wrapEnd;
+  html+=`</div>`; // close student-list-wrap
   return html;
 }
 function selPagosQuota(id){pagosSelQuota=id;pagosSearch="";pagosLoteMode=false;render();}
 function toggleLote(){pagosLoteMode=!pagosLoteMode;render();}
 function renderInPlace(){
-  // Re-render content without losing focus
-  const html=getContent();
-  if(isDesktop()){document.getElementById("content-desk").innerHTML=html;}
-  else{document.getElementById("content-mob").innerHTML=html;}
-  // Restore focus to search
-  const s=document.querySelector(".search-box");
-  if(s){s.focus();s.setSelectionRange(s.value.length,s.value.length);}
+  // Only re-render the student list to preserve keyboard focus
+  const wrap=document.getElementById("student-list-wrap");
+  if(!wrap){render();return;}
+  const q=state.quotas.find(x=>x.id===pagosSelQuota);
+  if(!q){render();return;}
+  const searchLow=pagosSearch.toLowerCase();
+  let html="";
+  const gridWrap=isDesktop()&&!pagosLoteMode?`<div class="s-row-grid">`:"";
+  const gridEnd=isDesktop()&&!pagosLoteMode?`</div>`:"";
+  html+=gridWrap;
+  state.students.forEach(s=>{
+    if(searchLow&&!s.name.toLowerCase().includes(searchLow))return;
+    const inQuota=isInQuota(s.id,q);
+    if(!inQuota){
+      html+=`<div class="s-row" style="opacity:.3;cursor:default"><div class="s-dot" style="background:#2e3a55;border:2px dashed #334155"></div><div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div></div><div class="s-status" style="color:#475569;font-size:11px">No aplica</div></div>`;
+      return;
+    }
+    const paid=isPaid(s.id,q.id);
+    const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
+    const isPart=partial>0&&!paid;
+    const dotColor=paid?"#3dd68c":isPart?"#f5c842":"#2e3a55";
+    const stColor=paid?"#3dd68c":isPart?"#f5c842":"#7a85a0";
+    const stText=paid?"✓ Pagado":isPart?fmt(partial):"Pendiente";
+    if(pagosLoteMode&&!paid){
+      html+=`<div class="s-row" style="cursor:default"><input type="checkbox" class="lote-check" id="lote-${s.id}"><div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div><div class="s-status" style="color:${stColor}">${stText}</div></div>`;
+    } else {
+      html+=`<button class="s-row" onclick="openPayment('${s.id}','${q.id}')"><div class="s-dot" style="background:${dotColor}"></div><div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(q.amount-partial)}</div>`:""}</div><div class="s-status" style="color:${stColor}">${stText}</div></button>`;
+    }
+  });
+  html+=gridEnd;
+  wrap.innerHTML=html;
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
