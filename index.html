@@ -265,21 +265,36 @@ input,select{font-family:'Roboto',sans-serif;}
     _fbSaveTs = Date.now();
     const body = JSON.stringify(s);
     _fbLastHash = body;
+    window._fbSetStatus("💾 Guardando...", "#f5c842");
     fetch(_FB_URL + ".json", {
       method: "PUT",
       headers: {"Content-Type": "application/json"},
       body: body
-    }).catch(function(e){ console.error("FB save:", e); });
+    })
+    .then(function(r){
+      if(r.ok){ window._fbSetStatus("☁️ Guardado", "#3dd68c"); }
+      else{ r.text().then(function(t){ window._fbSetStatus("❌ Error "+r.status+": "+t.slice(0,40), "#f16060"); console.error("FB save error:", r.status, t); }); }
+    })
+    .catch(function(e){ window._fbSetStatus("❌ Sin conexión", "#f16060"); console.error("FB save:", e); });
+  };
+
+  window._fbSetStatus = function(msg, color) {
+    ["fb-status-mob","fb-status-desk"].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el){ el.textContent = msg; el.style.color = color; }
+    });
   };
 
   window._fbStartPolling = function(onRemoteChange) {
+    window._fbSetStatus("⏳ Conectando...", "#7a85a0");
     fetch(_FB_URL + ".json")
       .then(function(r){ return r.json(); })
       .then(function(val){
         _fbLastHash = JSON.stringify(val);
+        window._fbSetStatus("☁️ Conectado", "#3dd68c");
         onRemoteChange(val);
       })
-      .catch(function(e){ console.error("FB load:", e); onRemoteChange(null); });
+      .catch(function(e){ console.error("FB load:", e); window._fbSetStatus("❌ Sin conexión", "#f16060"); onRemoteChange(null); });
 
     setInterval(function() {
       if(Date.now() - _fbSaveTs < 5000) return;
@@ -318,6 +333,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <div class="sidebar-badge">4°B</div>
       <div class="sidebar-title">Comité Delegados</div>
       <div class="sidebar-sub">Saint George's College</div>
+      <div style="font-size:11px;margin-top:6px"><span id="fb-status-desk" style="color:var(--muted)">⏳</span></div>
     </div>
     <nav class="sidebar-nav">
       <button class="nav-btn active" id="nav-resumen" onclick="switchTab('resumen')">
@@ -356,7 +372,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <div class="header-badge">4°B</div>
       <div>
         <div class="header-title">Comité Delegados</div>
-        <div class="header-sub">Saint George's College</div>
+        <div class="header-sub">Saint George's College &nbsp;·&nbsp; <span id="fb-status-mob" style="font-size:10px">⏳</span></div>
       </div>
     </div>
     <button class="exit-btn" onclick="doLogout()">Salir</button>
