@@ -1037,17 +1037,40 @@ function renderAlumnos(){
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="color:var(--muted);font-size:13px">👥 ${state.students.length} alumnos</span>${!isDesktop()?`<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>`:""}</div>`;
   html+=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${alumnosSearch}" oninput="filterAlumnos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   const isDesk=isDesktop();
-  if(isDesk)html+=`<div id="alumnos-list" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
-  else html+=`<div id="alumnos-list">`;
-  state.students.forEach((s,i)=>{
-    const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
-    const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
-    html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}" onclick="openFicha('${s.id}')"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
-        <button class="icon-btn" onclick="event.stopPropagation();requireAdmin(()=>deleteStudent('${s.id}'))">🗑️</button>
-      </div></div>`;
-  });
+  // Sort alphabetically
+  const sortedStudents=[...state.students].sort((a,b)=>a.name.localeCompare(b.name,"es"));
+  if(!isDesk){
+    html+=`<div id="alumnos-list">`;
+    sortedStudents.forEach((s,i)=>{
+      const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
+      const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
+      html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}" onclick="openFicha('${s.id}')"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
+          <button class="icon-btn" onclick="event.stopPropagation();requireAdmin(()=>deleteStudent('${s.id}'))">🗑️</button>
+        </div></div>`;
+    });
+  } else {
+    // Newspaper column layout: left col = first half, right col = second half
+    const half=Math.ceil(sortedStudents.length/2);
+    const leftCol=sortedStudents.slice(0,half);
+    const rightCol=sortedStudents.slice(half);
+    html+=`<div id="alumnos-list" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
+    const maxRows=half;
+    for(let i=0;i<maxRows;i++){
+      [leftCol[i],rightCol[i]].forEach(s=>{
+        if(!s)return;
+        const idx=sortedStudents.indexOf(s);
+        const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
+        const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
+        html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}" onclick="openFicha('${s.id}')"><div class="alumno-num">${idx+1}</div><div class="alumno-name">${s.name}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
+            <button class="icon-btn" onclick="event.stopPropagation();requireAdmin(()=>deleteStudent('${s.id}'))">🗑️</button>
+          </div></div>`;
+      });
+    }
+  }
   html+=`</div>`;
   return html;
 }
