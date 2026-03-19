@@ -404,7 +404,7 @@ input,select{font-family:'Roboto',sans-serif;}
 <!-- LOGIN (hidden - only used for admin upgrade via requireAdmin) -->
 <div id="login" class="hidden">
   <div class="login-card">
-    <div class="login-badge" id="login-badge">4°B</div>
+    <div class="login-badge" id="login-badge"></div>
     <div class="login-title">Tesoreros SG</div>
     <div class="login-sub" id="login-sub">Saint George's College</div>
     <input id="pin-input" type="password" placeholder="••••" maxlength="8" autocomplete="off"/>
@@ -419,7 +419,7 @@ input,select{font-family:'Roboto',sans-serif;}
   <!-- SIDEBAR (desktop) -->
   <aside class="sidebar" id="sidebar" style="display:none">
     <div class="sidebar-brand">
-      <div class="sidebar-badge" id="sidebar-badge">4°B</div>
+      <div class="sidebar-badge" id="sidebar-badge"></div>
       <div class="sidebar-title" id="sidebar-title">Tesoreros SG</div>
       <div class="sidebar-sub">Saint George's College</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
@@ -471,7 +471,7 @@ input,select{font-family:'Roboto',sans-serif;}
   <!-- MOBILE HEADER -->
   <div class="mob-header" id="mob-header">
     <div class="header-left">
-      <div class="header-badge" id="mob-badge">4°B</div>
+      <div class="header-badge" id="mob-badge"></div>
       <div>
         <div class="header-title" id="mob-title">Tesoreros SG</div>
         <div class="header-sub">Saint George's &nbsp;·&nbsp; <span id="fb-status-mob" style="font-size:10px">⏳</span></div>
@@ -694,7 +694,7 @@ const TAB_META={
   resumen:{title:"Resumen",sub:"Vista general del fondo",action:null},
   pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>'},
   gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>'},
-  alumnos:{title:"Alumnos",sub:"Lista de 4°B",action:'<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>'},
+  alumnos:{title:"Alumnos",sub:"Lista de "+CURSO_LABEL,action:'<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>'},
   pendientes:{title:"Pendientes",sub:"Familias con saldo pendiente",action:null},
   log:{title:"Log de movimientos",sub:"Historial de todas las acciones",action:null},
 };
@@ -1551,7 +1551,7 @@ function downloadBackup(){
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url;
-  a.download="comite4b_backup_"+hoy()+".json";
+  a.download="tesoreros_"+_CURSO_ID+"_backup_"+hoy()+".json";
   a.click();
   URL.revokeObjectURL(url);
   showToast("✓ Backup descargado");
@@ -1745,7 +1745,7 @@ function shareImage(quotaId){
   canvas.toBlob(function(blob){
     const fname=(quotaId?"cuota_":"resumen_")+hoy()+".png";
     if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([blob],"img.png",{type:"image/png"})]})){
-      navigator.share({files:[new File([blob],fname,{type:"image/png"})],title:"Comité 4°B"});
+      navigator.share({files:[new File([blob],fname,{type:"image/png"})],title:"Curso "+CURSO_LABEL});
     } else {
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a");
