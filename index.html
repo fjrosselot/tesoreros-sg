@@ -1828,7 +1828,7 @@ Responde SOLO con un JSON con este formato exacto, sin texto adicional:
 }
 Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y explica en errorMessage.`;
 
-  fetch("https://api.anthropic.com/v1/messages",{
+  fetch("https://claude-proxy-vert.vercel.app/api/proxy",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
