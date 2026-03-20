@@ -1043,7 +1043,8 @@ function renderPagos(){
     const paidKey=paid?"1":"0";
 
     if(pagosLoteMode&&!paid){
-      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:default;${vis}">
+      const loteVis=searchHide?"display:none;":""; // in lote mode, ignore filtroHide
+      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:default;${loteVis}">
         <input type="checkbox" class="lote-check" id="lote-${s.id}">
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
@@ -1082,10 +1083,10 @@ function filterStudents(val){
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
-  const checked=state.students.filter(s=>!s.paused).filter(s=>{
-    const el=document.getElementById("lote-"+s.id);
-    return el&&el.checked;
-  });
+  // Get all checked lote checkboxes from DOM directly
+  const checkedEls=[...document.querySelectorAll(".lote-check:checked")];
+  const checkedIds=new Set(checkedEls.map(el=>el.id.replace("lote-","")));
+  const checked=state.students.filter(s=>checkedIds.has(s.id));
   if(!checked.length){showToast("Selecciona al menos un alumno","err");return;}
   const date=hoy();
   let count=0;
