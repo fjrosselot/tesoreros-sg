@@ -554,7 +554,7 @@ const isDesktop=()=>window.innerWidth>=768;
 function uid(){return Math.random().toString(36).slice(2,10);}
 function fmt(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
 function hoy(){return new Date().toISOString().slice(0,10);}
-function blankState(){return{students:INIT_STUDENTS.map((name,i)=>({id:"s"+i,name})),quotas:[],payments:[],expenses:[],log:[]};}
+function blankState(){return{students:INIT_STUDENTS.map((name,i)=>({id:"s"+i,name})),quotas:[],payments:[],expenses:[],log:[],saldoInicial:0};}
 function toArr(v){
   if(!v) return [];
   if(Array.isArray(v)) return v;
@@ -569,7 +569,8 @@ function mergeState(val){
     quotas:   toArr(val.quotas).map(q=>({...q,amounts:q.amounts&&typeof q.amounts==='object'&&!Array.isArray(q.amounts)?q.amounts:{},studentIds:toArr(q.studentIds)})),
     payments: toArr(val.payments),
     expenses: toArr(val.expenses),
-    log:      toArr(val.log)
+    log:      toArr(val.log),
+    saldoInicial: val.saldoInicial||0
   };
 }
 function saveData(){if(window._fbSave)window._fbSave(state);}
@@ -775,14 +776,20 @@ function renderResumen(){
   const tot=state.payments.reduce((s,p)=>s+p.amount,0);
   const gas=state.expenses.reduce((s,e)=>s+e.amount,0);
   const bal=tot-gas;
+  const si=state.saldoInicial||0;
+  const balConSaldo=bal+si;
   let html=`<div class="kpi-grid">
     <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(tot)}</div><div class="kpi-label">Recaudado</div></div>
     <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(gas)}</div><div class="kpi-label">Gastos</div></div>
-    <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${bal>=0?"#5b82f0":"#f16060"}">${fmt(bal)}</div><div class="kpi-label">Balance</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${balConSaldo>=0?"#5b82f0":"#f16060"}">${fmt(balConSaldo)}</div><div class="kpi-label">Balance</div></div>
     <div class="kpi-card"><div class="kpi-icon">👥</div><div class="kpi-value">${state.students.length}</div><div class="kpi-label">Alumnos</div></div>
   </div>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
-    <button onclick="shareImage(null)" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--green-dim);border:1px solid var(--green);border-radius:var(--r);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">📸 Compartir resumen</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    ${si>0?`<div style="font-size:12px;color:var(--muted)">💵 Saldo inicial: <span style="color:var(--green);font-weight:600">${fmt(si)}</span></div>`:"<div></div>"}
+    <div style="display:flex;gap:8px">
+      ${isAdmin?`<button onclick="openSaldoInicial()" style="padding:7px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">💵 Saldo inicial</button>`:""}
+      <button onclick="shareImage(null)" style="padding:8px 14px;background:var(--green-dim);border:1px solid var(--green);border-radius:var(--r);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">📸 Compartir</button>
+    </div>
   </div>`;
 
   // Flujo proyectado
@@ -798,13 +805,14 @@ function renderResumen(){
     const qs=getQuotaStudents(q);
     return sum+qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
   },0);
-  const balProyectado=tot+porRecaudar+(flujoDrafts?draftTotal:0)-gas;
+  const balProyectado=si+tot+porRecaudar+(flujoDrafts?draftTotal:0)-gas;
 
   html+=`<div class="section"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
     <div class="sec-title" style="margin:0">📈 Flujo proyectado</div>
     ${draftQuotas.length?`<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer"><input type="checkbox" ${flujoDrafts?"checked":""} onchange="flujoDrafts=this.checked;render()" style="accent-color:var(--navy);width:14px;height:14px"> Incluir borradores</label>`:""}
   </div>
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+    ${si>0?`<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">💵 Saldo inicial</span><span style="font-size:13px;font-weight:600;color:#3dd68c">${fmt(si)}</span></div>`:""}
     <div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">💰 Recaudado</span><span style="font-size:13px;font-weight:600;color:#3dd68c">${fmt(tot)}</span></div>
     <div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">📥 Por recaudar</span><span style="font-size:13px;font-weight:600;color:#5b82f0">${fmt(porRecaudar)}</span></div>
     ${flujoDrafts&&draftTotal>0?`<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">📝 Borradores</span><span style="font-size:13px;font-weight:600;color:#f5c842">${fmt(draftTotal)}</span></div>`:""}
@@ -989,9 +997,25 @@ function saveLote(qid){
     showToast("Todos ya están pagados","err");
   }
 }
+function openSaldoInicial(){
+  const val=state.saldoInicial||0;
+  openSheet("💵 Saldo inicial",
+    '<div style="color:var(--muted);font-size:13px;margin-bottom:14px">Saldo de apertura del curso, ej: fondos del año anterior.</div>'
+    +moneyInput("Monto ($)","f-saldo-inicial","ej: 50.000",val||""),
+    "saveSaldoInicial()"
+  );
+}
+function saveSaldoInicial(){
+  const v=getMoneyVal("f-saldo-inicial");
+  state.saldoInicial=v;
+  addLog("💵","Saldo inicial establecido en "+fmt(v));
+  saveData();closeSheet();render();showToast("✓ Saldo inicial guardado");
+}
 function revertToDraft(id){
   const q=state.quotas.find(x=>x.id===id);
-  if(!confirm("¿Volver \""+q.name+"\" a borrador? No afecta los pagos ya registrados."))return;
+  const pagos=state.payments.filter(p=>p.quotaId===id);
+  if(pagos.length>0){showToast("⚠️ Elimina los "+pagos.length+" pago(s) registrados antes de revertir a borrador","err");return;}
+  if(!confirm("¿Volver \""+q.name+"\" a borrador?"))return;
   state.quotas=state.quotas.map(x=>x.id===id?{...x,draft:true}:x);
   addLog("📝",`Cuota "${q.name}" revertida a borrador`);
   saveData();render();showToast("✓ Cuota convertida a borrador");
@@ -1204,8 +1228,14 @@ function openAddQuota(){
     + '<button type="button" id="q-all-no" onclick="qToggleAll(false)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px">Seleccionar</button>'
     + '</div></div>'
     // Lista de alumnos (solo visible si "Seleccionar")
-    + '<div id="q-student-list" style="display:none;max-height:240px;overflow-y:auto;margin-bottom:8px">'
+    + '<div id="q-student-list" style="display:none;margin-bottom:8px">'
+    + '<div style="display:flex;gap:8px;padding:6px 2px;border-bottom:1px solid var(--border2);margin-bottom:4px">'
+    + '<button type="button" onclick="qSelectAllStudents(true)" style="flex:1;padding:7px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">✓ Todos</button>'
+    + '<button type="button" onclick="qSelectAllStudents(false)" style="flex:1;padding:7px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">✗ Ninguno</button>'
+    + '</div>'
+    + '<div style="max-height:220px;overflow-y:auto">'
     + state.students.map(s=>`<label style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" id="qsid-${s.id}" checked style="width:16px;height:16px;accent-color:var(--navy)"><span style="font-size:13px">${s.name}</span></label>`).join('')
+    + '</div>'
     + '</div>'
     // Modo de montos — pill selector
     + '<div class="field">'
@@ -1253,6 +1283,12 @@ function qToggleAll(all){
   document.getElementById("q-all-no").style.color = all ? "var(--muted)" : "#fff";
   document.getElementById("q-all-no").style.borderColor = all ? "var(--border2)" : "var(--navy)";
   document.getElementById("q-student-list").style.display = all ? "none" : "block";
+}
+function qSelectAllStudents(checked){
+  state.students.forEach(function(s){
+    var el=document.getElementById("qsid-"+s.id);
+    if(el) el.checked=checked;
+  });
 }
 function setDraft(on){
   window._isDraft = on;
