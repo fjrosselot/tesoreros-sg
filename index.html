@@ -1867,6 +1867,142 @@ function getMoneyVal(id){
 }
 
 // ── LOG ──────────────────────────────────────────────────────
+function drawReportesChart(){
+  const canvas=document.getElementById("reportes-chart");
+  if(!canvas)return;
+  const timeline=window._reportesTimeline||[];
+  const si=window._reportesSI||0;
+  if(!timeline.length)return;
+
+  const ctx=canvas.getContext("2d");
+  const W=canvas.offsetWidth||600;
+  const H=220;
+  canvas.width=W; canvas.height=H;
+
+  const pad={t:14,r:20,b:30,l:70};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  const mode=reportesMode||"saldo";
+
+  // Pick data series
+  let values, lineColor, dotColorFn, label;
+  if(mode==="ingresos"){
+    values=timeline.map(r=>r.ingreso);
+    lineColor="#3dd68c"; dotColorFn=()=>"#3dd68c"; label="Recaudado";
+  } else if(mode==="gastos"){
+    values=timeline.map(r=>r.gasto);
+    lineColor="#f5c842"; dotColorFn=()=>"#f5c842"; label="Gastos";
+  } else {
+    values=timeline.map(r=>r.balance);
+    lineColor="#2d5be3"; dotColorFn=v=>v>=0?"#3dd68c":"#f16060"; label="Saldo";
+  }
+
+  const maxV=Math.max(...values,si>0&&mode==="saldo"?si:0,1);
+  const minV=Math.min(...values,mode==="saldo"?Math.min(si,0):0,0);
+  const range=maxV-minV||1;
+  const toY=v=>pad.t+ch-(((v-minV)/range)*ch);
+  const toX=i=>pad.l+(i/(Math.max(timeline.length-1,1)))*cw;
+
+  // Background
+  ctx.fillStyle="#0f1117"; ctx.fillRect(0,0,W,H);
+
+  // Grid lines
+  ctx.strokeStyle="#252d42"; ctx.lineWidth=1;
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    const y=pad.t+ch*f;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    const val=maxV-(f*range);
+    ctx.fillStyle="#7a85a0"; ctx.font="10px Roboto,Arial,sans-serif";
+    ctx.textAlign="right"; ctx.fillText(fmt(val),pad.l-4,y+4);
+  });
+  ctx.textAlign="left";
+
+  // Area fill
+  ctx.beginPath();
+  ctx.moveTo(toX(0),toY(values[0]));
+  timeline.forEach((_,i)=>{ if(i>0) ctx.lineTo(toX(i),toY(values[i])); });
+  ctx.lineTo(toX(timeline.length-1),toY(minV));
+  ctx.lineTo(toX(0),toY(minV));
+  ctx.closePath();
+  ctx.fillStyle=lineColor+"22";
+  ctx.fill();
+
+  // Line
+  ctx.strokeStyle=lineColor; ctx.lineWidth=2.5; ctx.lineJoin="round";
+  ctx.beginPath();
+  timeline.forEach((r,i)=>{ i===0?ctx.moveTo(toX(i),toY(values[i])):ctx.lineTo(toX(i),toY(values[i])); });
+  ctx.stroke();
+
+  // Dots
+  timeline.forEach((r,i)=>{
+    ctx.fillStyle=dotColorFn(values[i]);
+    ctx.beginPath(); ctx.arc(toX(i),toY(values[i]),4,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle="#0f1117"; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(toX(i),toY(values[i]),4,0,Math.PI*2); ctx.stroke();
+  });
+
+  // X axis labels
+  ctx.fillStyle="#7a85a0"; ctx.font="10px Roboto,Arial,sans-serif"; ctx.textAlign="center";
+  const step=Math.max(1,Math.floor(timeline.length/6));
+  timeline.forEach((r,i)=>{
+    if(i%step===0||i===timeline.length-1){
+      const parts=r.date.split("-");
+      ctx.fillText(parseInt(parts[2])+"/"+parseInt(parts[1]),toX(i),H-8);
+    }
+  });
+  ctx.textAlign="left";
+
+  // Store points for tooltip
+  canvas._points=timeline.map((r,i)=>({x:toX(i),y:toY(values[i]),val:values[i],date:r.date,ingreso:r.ingreso,gasto:r.gasto,balance:r.balance}));
+
+  // Tooltip on mousemove
+  canvas.onmousemove=function(e){
+    const rect=canvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+    const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+    const tooltip=document.getElementById("chart-tooltip");
+    if(!tooltip)return;
+    // Find nearest point
+    let nearest=null, minDist=40;
+    (canvas._points||[]).forEach(p=>{
+      const d=Math.sqrt((p.x-mx)**2+(p.y-my)**2);
+      if(d<minDist){minDist=d;nearest=p;}
+    });
+    if(nearest){
+      const parts=nearest.date.split("-");
+      const dateStr=parseInt(parts[2])+" "+["","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][parseInt(parts[1])];
+      tooltip.innerHTML=
+        '<div style="font-weight:700;margin-bottom:4px;color:var(--text)">'+dateStr+'</div>'+
+        (mode==="saldo"?'<div style="color:#3dd68c">💰 Recaudado: '+fmt(nearest.ingreso)+'</div><div style="color:#f5c842">🧾 Gastos: '+fmt(nearest.gasto)+'</div><div style="font-weight:700;color:'+(nearest.balance>=0?"#3dd68c":"#f16060")+'">⚖️ Saldo: '+fmt(nearest.balance)+'</div>':
+         mode==="ingresos"?'<div style="color:#3dd68c">💰 Recaudado: '+fmt(nearest.ingreso)+'</div>':
+         '<div style="color:#f5c842">🧾 Gastos: '+fmt(nearest.gasto)+'</div>');
+      // Position tooltip
+      let tx=(e.clientX-rect.left)+10;
+      let ty=(e.clientY-rect.top)-60;
+      if(tx+140>rect.width) tx=(e.clientX-rect.left)-150;
+      if(ty<0) ty=10;
+      tooltip.style.left=tx+"px"; tooltip.style.top=ty+"px"; tooltip.style.display="block";
+    } else {
+      tooltip.style.display="none";
+    }
+  };
+  canvas.onmouseleave=function(){
+    const t=document.getElementById("chart-tooltip");
+    if(t) t.style.display="none";
+  };
+
+  // Update pill styles
+  ["saldo","ingresos","gastos"].forEach(function(m){
+    const btn=document.getElementById("rpill-"+m);
+    if(!btn)return;
+    const colors={saldo:["var(--navy)","var(--navy-dim)","var(--navy-light)"],ingresos:["var(--green)","var(--green-dim)","var(--green)"],gastos:["#f5c842","rgba(245,200,66,.1)","#f5c842"]};
+    const active=m===mode;
+    const [bc,bg,fc]=colors[m];
+    btn.style.border="1px solid "+(active?bc:"var(--border2)");
+    btn.style.background=active?bg:"transparent";
+    btn.style.color=active?fc:"var(--muted)";
+  });
+}
+
 function renderReportes(){
   // Build daily timeline of payments and expenses
   const events=[];
@@ -1910,9 +2046,21 @@ function renderReportes(){
     <div class="kpi-card"><div class="kpi-icon">📅</div><div class="kpi-value">${dates.length}</div><div class="kpi-label">Días con movimiento</div></div>
   </div>`;
 
-  // Chart using canvas
-  html+=`<div class="section"><div class="sec-title">📊 Evolución del balance</div>
-  <canvas id="reportes-chart" style="width:100%;height:200px;display:block"></canvas></div>`;
+  // Chart pills + canvas
+  html+=`<div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="sec-title" style="margin:0">📊 Evolución</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="reportesMode='saldo';drawReportesChart()" style="padding:5px 12px;border-radius:20px;border:1px solid ${reportesMode==='saldo'?'var(--navy)':'var(--border2)'};background:${reportesMode==='saldo'?'var(--navy-dim)':'transparent'};color:${reportesMode==='saldo'?'var(--navy-light)':'var(--muted)'};font-size:12px;cursor:pointer;font-family:Roboto,sans-serif" id="rpill-saldo">⚖️ Saldo</button>
+        <button onclick="reportesMode='ingresos';drawReportesChart()" style="padding:5px 12px;border-radius:20px;border:1px solid ${reportesMode==='ingresos'?'var(--green)':'var(--border2)'};background:${reportesMode==='ingresos'?'var(--green-dim)':'transparent'};color:${reportesMode==='ingresos'?'var(--green)':'var(--muted)'};font-size:12px;cursor:pointer;font-family:Roboto,sans-serif" id="rpill-ingresos">💰 Recaudado</button>
+        <button onclick="reportesMode='gastos';drawReportesChart()" style="padding:5px 12px;border-radius:20px;border:1px solid ${reportesMode==='gastos'?'#f5c842':'var(--border2)'};background:${reportesMode==='gastos'?'rgba(245,200,66,.1)':'transparent'};color:${reportesMode==='gastos'?'#f5c842':'var(--muted)'};font-size:12px;cursor:pointer;font-family:Roboto,sans-serif" id="rpill-gastos">🧾 Gastos</button>
+      </div>
+    </div>
+    <div style="position:relative">
+      <canvas id="reportes-chart" style="width:100%;height:220px;display:block;cursor:crosshair"></canvas>
+      <div id="chart-tooltip" style="display:none;position:absolute;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;pointer-events:none;z-index:10;min-width:120px;box-shadow:0 4px 12px rgba(0,0,0,.3)"></div>
+    </div>
+  </div>`;
 
   // Table of movements by date
   html+=`<div class="section"><div class="sec-title">📅 Movimientos por fecha</div>
@@ -1956,55 +2104,11 @@ function renderReportes(){
     html+=`</div>`;
   }
 
-  // Deferred chart drawing
-  setTimeout(function(){
-    const canvas=document.getElementById("reportes-chart");
-    if(!canvas)return;
-    const ctx=canvas.getContext("2d");
-    const W=canvas.offsetWidth||600;
-    const H=200;
-    canvas.width=W;canvas.height=H;
-    if(!timeline.length)return;
-    const pad={t:10,r:20,b:30,l:60};
-    const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
-    const balances=timeline.map(r=>r.balance);
-    const maxB=Math.max(...balances,si,1);
-    const minB=Math.min(...balances,si,0);
-    const range=maxB-minB||1;
-    const toY=v=>pad.t+ch-(((v-minB)/range)*ch);
-    const toX=i=>pad.l+(i/(Math.max(timeline.length-1,1)))*cw;
-    // Grid
-    ctx.strokeStyle="#252d42";ctx.lineWidth=1;
-    [0,0.25,0.5,0.75,1].forEach(f=>{
-      const y=pad.t+ch*f;
-      ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
-      const val=maxB-(f*range);
-      ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";
-      ctx.fillText(fmt(val),2,y+4);
-    });
-    // Balance line
-    ctx.strokeStyle="#2d5be3";ctx.lineWidth=2;ctx.beginPath();
-    // Start from saldo inicial before first date
-    if(si>0){ctx.moveTo(pad.l,toY(si));}
-    else{ctx.moveTo(toX(0),toY(timeline[0].balance));}
-    timeline.forEach((r,i)=>{ctx.lineTo(toX(i),toY(r.balance));});
-    ctx.stroke();
-    // Dots
-    timeline.forEach((r,i)=>{
-      ctx.fillStyle=r.balance>=0?"#3dd68c":"#f16060";
-      ctx.beginPath();ctx.arc(toX(i),toY(r.balance),4,0,Math.PI*2);ctx.fill();
-    });
-    // X axis labels
-    ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";
-    const step=Math.max(1,Math.floor(timeline.length/6));
-    timeline.forEach((r,i)=>{
-      if(i%step===0||i===timeline.length-1){
-        const parts=r.date.split("-");
-        const lbl=parseInt(parts[2])+"/"+parseInt(parts[1]);
-        ctx.fillText(lbl,toX(i)-10,H-8);
-      }
-    });
-  },100);
+  // Store timeline for chart function
+  window._reportesTimeline=timeline;
+  window._reportesSI=si;
+
+  setTimeout(function(){ drawReportesChart(); },100);
 
   return html;
 }
@@ -2038,6 +2142,7 @@ let pagosFiltro="todos"; // todos | pagados | pendientes
 let flujoDrafts=false; // toggle borradores en flujo proyectado
 let alumnosSearch="";
 let alumnosGender="all"; // all, m, f
+let reportesMode="saldo"; // saldo, ingresos, gastos
 let pendientesSearch="";
 let gastosSearch="";
 
