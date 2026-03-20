@@ -1099,20 +1099,9 @@ function loteToggle(sid, row){
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
-  // Get all checked lote checkboxes from DOM
-  const allLoteChecks=[...document.querySelectorAll(".lote-check")];
-  const allChecked=allLoteChecks.filter(el=>el.checked);
-  // Debug: show states of first 3 checkboxes
-  // Show all checkbox IDs and checked state
-  const allStates=allLoteChecks.map(el=>el.id+"="+el.checked);
-  const checkedStates=allStates.filter(s=>s.includes("true"));
-  if(!allChecked.length){
-    // Show first 4 IDs so we can see what's in DOM
-    showToast("IDs: "+allLoteChecks.slice(0,4).map(el=>el.id).join(", "),"err");
-    return;
-  }
-  const checkedIds=new Set(allChecked.map(el=>el.id.replace("lote-","")));
-  const checked=state.students.filter(s=>checkedIds.has(s.id));
+  if(!loteSelected.size){showToast("Selecciona al menos un alumno","err");return;}
+  const checked=state.students.filter(s=>loteSelected.has(s.id));
+  if(!checked.length){showToast("Selecciona al menos un alumno","err");return;}
   const date=hoy();
   let count=0;
   checked.forEach(s=>{
@@ -1126,12 +1115,13 @@ function saveLote(qid){
     }
   });
   if(count>0){
-    addLog("☑️",`Pago en lote: ${count} alumnos pagaron "${q.name}" — ${fmt(q.amount)} c/u`);
-    saveData();pagosLoteMode=false;render();showToast(`✓ ${count} pagos registrados`);
+    addLog("☑️","Pago en lote: "+count+" alumnos pagaron \""+q.name+"\" — "+fmt(q.amount)+" c/u");
+    saveData();pagosLoteMode=false;loteSelected=new Set();render();showToast("✓ "+count+" pagos registrados");
   } else {
     showToast("Todos ya están pagados","err");
   }
 }
+
 function openSaldoInicial(){
   const val=state.saldoInicial||0;
   openSheet("💵 Saldo inicial",
@@ -1290,7 +1280,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v1.28";
+const APP_VERSION="v1.29";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
