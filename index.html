@@ -1189,8 +1189,8 @@ function renderAlumnos(){
       const gIcon=s.gender==="f"?"👩":"👦";
       html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}${s.paused?"opacity:0.5;":""}" onclick="openFicha('${s.id}')"><div class="alumno-num">${gIcon}</div><div class="alumno-name">${s.name}${s.paused?' <span style="font-size:10px;color:var(--yellow)">(Pausado)</span>':""}</div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          ${!s.paused?(owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`):'<span class="badge" style="background:rgba(245,200,66,.15);color:var(--yellow)">⏸</span>'}
-          ${isAdmin?`<button class="icon-btn" style="font-size:13px" onclick="event.stopPropagation();requireAdmin(()=>togglePauseStudent('${s.id}'))">${s.paused?"▶":"⏸"}</button>`:""}
+          ${s.paused?'<span class="badge" style="background:rgba(245,200,66,.15);color:var(--yellow)">&#9208;</span>':(owed>0?'<span class="badge badge-owed">'+fmt(owed)+'</span>':'<span class="badge badge-ok">Al día ✓</span>')}
+          ${isAdmin?'<button class="icon-btn" style="font-size:13px" onclick="event.stopPropagation();requireAdmin(()=>togglePauseStudent(\''+s.id+'\'))">'+(s.paused?'&#9654;':'&#9208;')+'</button>':""}
         </div></div>`;
     });
   } else {
@@ -1209,8 +1209,8 @@ function renderAlumnos(){
         const gIcon2=s.gender==="f"?"👩":"👦";
         html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}${s.paused?"opacity:0.5;":""}" onclick="openFicha('${s.id}')"><div class="alumno-num">${gIcon2}</div><div class="alumno-name">${s.name}${s.paused?' <span style="font-size:10px;color:var(--yellow)">(⏸)</span>':""}</div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-            ${!s.paused?(owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`):'<span class="badge" style="background:rgba(245,200,66,.15);color:var(--yellow)">⏸</span>'}
-            ${isAdmin?`<button class="icon-btn" style="font-size:13px" onclick="event.stopPropagation();requireAdmin(()=>togglePauseStudent('${s.id}'))">${s.paused?"▶":"⏸"}</button>`:""}
+            ${s.paused?'<span class="badge" style="background:rgba(245,200,66,.15);color:var(--yellow)">&#9208;</span>':(owed>0?'<span class="badge badge-owed">'+fmt(owed)+'</span>':'<span class="badge badge-ok">Al día ✓</span>')}
+            ${isAdmin?'<button class="icon-btn" style="font-size:13px" onclick="event.stopPropagation();requireAdmin(()=>togglePauseStudent(\''+s.id+'\'))">'+(s.paused?'&#9654;':'&#9208;')+'</button>':""}
           </div></div>`;
       });
     }
