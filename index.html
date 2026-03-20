@@ -1087,14 +1087,17 @@ function filterStudents(val){
   if(lbl&&low) lbl.textContent=visible+" de "+rows.length+" alumno"+(rows.length!==1?"s":"");
 }
 function loteToggle(sid, row){
+  const cb=row.querySelector(".lote-check");
   if(loteSelected.has(sid)){
     loteSelected.delete(sid);
     row.style.background="";
     row.style.outline="none";
+    if(cb) cb.checked=false;
   } else {
     loteSelected.add(sid);
     row.style.background="rgba(45,91,227,.2)";
     row.style.outline="2px solid var(--navy)";
+    if(cb) cb.checked=true;
   }
 }
 function saveLote(qid){
@@ -1280,7 +1283,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v1.30";
+const APP_VERSION="v1.31";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -1670,7 +1673,7 @@ function deletePayment(pid,sid,qid){
   const q=state.quotas.find(x=>x.id===qid);
   if(p)addLog("↩️",`Pago eliminado: ${s?.name} — ${fmt(p.amount)} en "${q?.name}"`);
   state.payments=state.payments.filter(x=>x.id!==pid);
-  saveData();openPayment(sid,qid);showToast("Pago eliminado");
+  saveData();closeSheet();render();showToast("Pago eliminado");
 }
 
 // ── MOROSOS ──────────────────────────────────────────────────
