@@ -432,6 +432,9 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="nav-btn active" id="nav-resumen" onclick="switchTab('resumen')">
         <span class="n-icon">📊</span> Resumen
       </button>
+      <button class="nav-btn" id="nav-cuotas" onclick="switchTab('cuotas')">
+        <span class="n-icon">📋</span> Cuotas
+      </button>
       <button class="nav-btn" id="nav-pagos" onclick="switchTab('pagos')">
         <span class="n-icon">💳</span> Pagos
       </button>
@@ -491,6 +494,9 @@ input,select{font-family:'Roboto',sans-serif;}
   <div class="tabbar" id="tabbar">
     <button class="tab-btn active" id="tab-resumen" onclick="switchTab('resumen')">
       <span class="tab-icon">📊</span><span class="tab-label">Resumen</span>
+    </button>
+    <button class="tab-btn" id="tab-cuotas" onclick="switchTab('cuotas')">
+      <span class="tab-icon">📋</span><span class="tab-label">Cuotas</span>
     </button>
     <button class="tab-btn" id="tab-pagos" onclick="switchTab('pagos')">
       <span class="tab-icon">💳</span><span class="tab-label">Pagos</span>
@@ -693,7 +699,9 @@ window.addEventListener("resize",()=>{if(state){applyLayout();render();}});
 
 const TAB_META={
   resumen:{title:"Resumen",sub:"Vista general del fondo",action:null},
-  pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>'},
+  cuotas:{title:"Cuotas",sub:"Gestión de cuotas activas y borradores",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>'},
+  cuotas:{title:"Cuotas",sub:"Gestión de cuotas activas y borradores",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>'},
+  pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:null},
   gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>'},
   alumnos:{title:"Alumnos",sub:"Lista de "+CURSO_LABEL,action:'<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>'},
   pendientes:{title:"Pendientes",sub:"Familias con saldo pendiente",action:null},
@@ -705,7 +713,7 @@ function switchTab(t){
   if(t==="log"&&!isAdmin){ showToast("Solo disponible en Modo Delegados","err"); return; }
   currentTab=t;
   // Reset search on tab change
-  if(t!=="pagos") pagosSearch="";
+  if(t!=="pagos"&&t!=="cuotas") pagosSearch="";
   if(t!=="alumnos") alumnosSearch="";
   if(t!=="pendientes") pendientesSearch="";
   if(t!=="gastos") gastosSearch="";
@@ -720,6 +728,7 @@ function switchTab(t){
 
 function getContent(){
   if(currentTab==="resumen")return renderResumen();
+  if(currentTab==="cuotas")return renderCuotas();
   if(currentTab==="pagos")return renderPagos();
   if(currentTab==="gastos")return renderGastos();
   if(currentTab==="alumnos")return renderAlumnos();
@@ -867,6 +876,61 @@ function renderResumen(){
   return html;
 }
 
+function renderCuotas(){
+  const activeQ=state.quotas.filter(q=>!q.draft);
+  const drafts=state.quotas.filter(q=>q.draft);
+  let html="";
+
+  // Borradores
+  if(drafts.length){
+    html+=`<div class="section"><div class="sec-title">📝 Borradores (${drafts.length})</div>`;
+    drafts.forEach(q=>{
+      html+=`<div class="draft-card"><div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${fmt(q.amount)} · ${q.date}</div></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="draft-badge">Borrador</span>
+          <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))" title="Editar">✏️</button>
+          <button class="icon-btn" onclick="requireAdmin(()=>activateDraft('${q.id}'))" title="Activar" style="background:var(--green-dim);border-color:var(--green);color:var(--green)">✓</button>
+          <button class="icon-btn" onclick="requireAdmin(()=>deleteQuota('${q.id}'))">🗑️</button>
+        </div>
+      </div></div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // Cuotas activas
+  html+=`<div class="section"><div class="sec-title">📋 Cuotas activas (${activeQ.length})</div>`;
+  if(!activeQ.length) html+=`<div class="empty">Sin cuotas activas — crea una nueva</div>`;
+  activeQ.forEach(q=>{
+    const st=qStats(q.id);
+    const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
+    html+=`<div class="card" style="margin-bottom:10px">
+      <div class="card-top">
+        <div style="flex:1;min-width:0">
+          <div class="card-title">${q.name}</div>
+          <div class="card-meta">${fmt(q.amount)} · ${q.date}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="pct-badge">${pct}%</span>
+          <button class="icon-btn" onclick="requireAdmin(()=>revertToDraft('${q.id}'))" title="Volver a borrador" style="font-size:11px;padding:4px 6px">📝</button>
+          <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))">✏️</button>
+          <button class="icon-btn" onclick="requireAdmin(()=>deleteQuota('${q.id}'))">🗑️</button>
+        </div>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
+      <div class="card-footer">
+        <span style="color:#3dd68c">✓ ${st.paid} pagaron</span>
+        <span style="color:#7a85a0">${st.pending} pendientes</span>
+        <span style="color:#7a85a0">${fmt(st.collected)} / ${fmt(st.expected)}</span>
+        <button onclick="switchTab('pagos');pagosSelQuota='${q.id}';render()" style="background:var(--navy-dim);border:1px solid rgba(45,91,227,.3);border-radius:6px;color:var(--navy-light);font-size:11px;padding:4px 10px;cursor:pointer;font-family:Roboto,sans-serif">Ver pagos →</button>
+      </div>
+    </div>`;
+  });
+  if(!isDesktop()) html+=`<button class="add-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>`;
+  html+=`</div>`;
+  return html;
+}
+
 function renderPagos(){
   const activeQuotas=state.quotas.filter(x=>!x.draft);
   if(!pagosSelQuota&&activeQuotas.length)pagosSelQuota=activeQuotas[0].id;
@@ -874,7 +938,7 @@ function renderPagos(){
   const q=state.quotas.find(x=>x.id===pagosSelQuota);
   let html=`<div class="pills">`;
   state.quotas.filter(x=>!x.draft).forEach(x=>{html+=`<button class="pill${x.id===pagosSelQuota?" active":""}" onclick="selPagosQuota('${x.id}')">${x.name}</button>`;});
-  html+=`<button class="pill new-pill" onclick="requireAdmin(openAddQuota)">＋ Nueva</button></div>`;
+  html+=`</div>`;
   if(!q){html+=`<div class="empty">Crea una cuota para empezar</div>`;return html;}
   const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
 
@@ -1246,11 +1310,29 @@ function openAddQuota(){
     + '<button type="button" id="qmode-exceptions" onclick="qAmtMode(\'exceptions\')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text);text-align:left;cursor:pointer;width:100%"><span style="font-size:18px">✏️</span><div><div style="font-size:13px;font-weight:500">Base + excepciones</div><div style="font-size:11px;color:var(--muted)">Monto base para todos, edita los que son distintos</div></div></button>'
     + '<input type="hidden" id="q-amt-mode-val" value="equal">'
     + '</div></div>'
-    // Panel por personas
-    + '<div id="q-perperson-panel" style="display:none"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
-    + '<div style="max-height:240px;overflow-y:auto">'
-    + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1">${s.name}</span><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><button type="button" onclick="qPPAdj('${s.id}',-1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer">−</button><span id="qpp-${s.id}" style="font-size:13px;font-weight:600;min-width:20px;text-align:center">2</span><button type="button" onclick="qPPAdj('${s.id}',1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer">+</button><span id="qpptotal-${s.id}" style="font-size:12px;color:var(--muted);min-width:55px;text-align:right">—</span></div></div>`).join('')
+    // Panel por personas — tarifa única o segmentada por edad
+    + '<div id="q-perperson-panel" style="display:none">'
+    + '<div class="field"><label>Tipo de tarifa</label><div style="display:flex;gap:8px;margin-top:4px">'
+    + '<button type="button" id="pp-unica-btn" onclick="qPPTarifa(false)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer">Única por persona</button>'
+    + '<button type="button" id="pp-seg-btn" onclick="qPPTarifa(true)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px;cursor:pointer">Por tramos de edad</button>'
     + '</div></div>'
+    // Tarifa única
+    + '<div id="pp-unica-panel"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
+    + '<div style="max-height:200px;overflow-y:auto">'
+    + state.students.map(s=>{const ap=s.name.split(",")[0]||s.name; return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1;font-weight:500">${ap}</span><div style="display:flex;align-items:center;gap:4px;flex-shrink:0"><button type="button" data-ppid="${s.id}" data-ppdelta="-1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">−</button><span id="qpp-${s.id}" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">2</span><button type="button" data-ppid="${s.id}" data-ppdelta="1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">+</button><span id="qpptotal-${s.id}" style="font-size:12px;color:var(--muted);min-width:55px;text-align:right">—</span></div></div>`;}).join('')
+    + '</div></div>'
+    // Tarifa segmentada
+    + '<div id="pp-seg-panel" style="display:none">'
+    + '<div style="display:flex;gap:8px;margin-bottom:8px">'
+    + '<div class="field" style="flex:1;margin:0"><label>Adulto ($)</label><input id="q-price-adulto" type="text" inputmode="numeric" placeholder="ej: 8.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
+    + '<div class="field" id="pp-adol-field" style="flex:1;margin:0;display:none"><label>Adolescente ($)</label><input id="q-price-adol" type="text" inputmode="numeric" placeholder="ej: 5.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
+    + '<div class="field" style="flex:1;margin:0"><label>Niño ($)</label><input id="q-price-nino" type="text" inputmode="numeric" placeholder="ej: 3.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
+    + '</div>'
+    + '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:8px"><input type="checkbox" id="pp-incl-adol" onchange="qToggleAdol(this.checked)" style="accent-color:var(--navy);width:14px;height:14px"> Incluir tramo Adolescente</label>'
+    + '<div style="max-height:200px;overflow-y:auto">'
+    + state.students.map(s=>{const ap=s.name.split(",")[0]||s.name; return `<div style="display:flex;align-items:center;gap:4px;padding:7px 2px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-weight:600;flex:1;min-width:80px">${ap}</span><span style="font-size:10px;color:var(--muted);width:18px;text-align:center">Ad</span><button type="button" data-segid="${s.id}" data-segtype="a" data-delta="-1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">−</button><span id="qseg-a-${s.id}" style="font-size:12px;font-weight:600;min-width:16px;text-align:center">2</span><button type="button" data-segid="${s.id}" data-segtype="a" data-delta="1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">+</button><span id="qseg-adol-wrap-${s.id}" style="display:none"><span style="font-size:10px;color:var(--muted);width:22px;text-align:center">Adol</span><button type="button" data-segid="${s.id}" data-segtype="adol" data-delta="-1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">−</button><span id="qseg-adol-${s.id}" style="font-size:12px;font-weight:600;min-width:16px;text-align:center">0</span><button type="button" data-segid="${s.id}" data-segtype="adol" data-delta="1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">+</button></span><span style="font-size:10px;color:var(--muted);width:22px;text-align:center">Niño</span><button type="button" data-segid="${s.id}" data-segtype="n" data-delta="-1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">−</button><span id="qseg-n-${s.id}" style="font-size:12px;font-weight:600;min-width:16px;text-align:center">1</span><button type="button" data-segid="${s.id}" data-segtype="n" data-delta="1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">+</button><span id="qsegtotal-${s.id}" style="font-size:11px;color:var(--muted);min-width:52px;text-align:right">—</span></div>`;}).join('')
+    + '</div></div>'
+    + '</div>'
     // Panel excepciones
     + '<div id="q-exceptions-panel" style="display:none"><div style="max-height:240px;overflow-y:auto">'
     + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1">${s.name}</span><input type="text" id="qexc-${s.id}" inputmode="numeric" placeholder="Monto base" style="width:110px;padding:8px 10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;text-align:right;font-family:Roboto,sans-serif;outline:none" oninput="formatMoneyInput(this)"></div>`).join('')
@@ -1266,10 +1348,11 @@ function openAddQuota(){
   window._isDraft = false;
   window._quotaAllStudents = true;
   window._ppSegmented = false;
+  // f-amount shown only for "equal" and "exceptions" modes, hidden for perperson
   var qBodyHtml = field("Nombre","f-name","ej: Asado fin de año")
-    +moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")
     +dateField("Fecha","f-date",hoy())
     +draftToggle
+    + '<div id="q-monto-wrap">'+moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")+'</div>'
     +allStudentsHTML;
   document.getElementById("modal-container").innerHTML=`<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">📋 Nueva cuota</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">${qBodyHtml}</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" id="quota-save-btn">Guardar</button></div></div></div>`;
   document.getElementById("quota-save-btn").addEventListener("click", saveAddQuota);
@@ -1318,6 +1401,9 @@ function qAmtMode(mode){
     var title=btn.querySelector("div div:first-child");
     if(title) title.style.color=active?"var(--navy-light)":"var(--text)";
   });
+  // Show/hide monto base — not needed for perperson
+  var montoWrap=document.getElementById("q-monto-wrap");
+  if(montoWrap) montoWrap.style.display=mode==="perperson"?"none":"block";
   document.getElementById("q-perperson-panel").style.display=mode==="perperson"?"block":"none";
   document.getElementById("q-exceptions-panel").style.display=mode==="exceptions"?"block":"none";
   if(mode==="exceptions"){
@@ -1398,9 +1484,11 @@ function qUpdatePP(){
 
 function saveAddQuota(){
   const name=document.getElementById("f-name").value.trim();
-  const amount=getMoneyVal("f-amount");
+  const amtModeCheck=document.getElementById("q-amt-mode-val")?.value||"equal";
+  const amount=amtModeCheck==="perperson"?0:getMoneyVal("f-amount");
   const date=document.getElementById("f-date").value;
-  if(!name||!amount)return;
+  if(!name)return;
+  if(amtModeCheck!=="perperson"&&!amount)return;
   let studentIds=[];
   let amounts={};
   const amtMode=document.getElementById("q-amt-mode-val")?.value||"equal";
