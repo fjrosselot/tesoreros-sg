@@ -1048,8 +1048,9 @@ function renderPagos(){
 
     if(pagosLoteMode&&!paid){
       const loteVis=searchHide?"display:none;":""; // in lote mode, ignore filtroHide
-      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:pointer;${loteVis}" onclick="loteToggle('lote-${s.id}',this)">
-        <input type="checkbox" class="lote-check" id="lote-${s.id}" style="width:22px;height:22px;accent-color:var(--navy);flex-shrink:0;pointer-events:none">
+      const isLoteSel=loteSelected.has(s.id);
+      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:pointer;${loteVis};${isLoteSel?"background:rgba(45,91,227,.2);outline:2px solid var(--navy);":""}" onclick="loteToggle('${s.id}',this)">
+        <div style="width:22px;height:22px;border-radius:5px;border:2px solid ${isLoteSel?"var(--navy)":"var(--border2)"};background:${isLoteSel?"var(--navy)":"transparent"};flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px">${isLoteSel?"✓":""}</div>
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </div>`;
@@ -1069,7 +1070,7 @@ function renderPagos(){
   return html;
 }
 function selPagosQuota(id){pagosSelQuota=id;pagosSearch="";pagosLoteMode=false;pagosFiltro="todos";render();}
-function toggleLote(){pagosLoteMode=!pagosLoteMode;render();}
+function toggleLote(){pagosLoteMode=!pagosLoteMode;loteSelected=new Set();render();}
 function filterStudents(val){
   pagosSearch=val;
   const low=val.toLowerCase();
@@ -1085,12 +1086,16 @@ function filterStudents(val){
   const lbl=document.getElementById("pagos-count-lbl");
   if(lbl&&low) lbl.textContent=visible+" de "+rows.length+" alumno"+(rows.length!==1?"s":"");
 }
-function loteToggle(cbId, row){
-  const cb=document.getElementById(cbId);
-  showToast("Toggle: "+cbId+" found="+(!!cb));
-  if(!cb)return;
-  cb.checked=!cb.checked;
-  row.style.background=cb.checked?"rgba(45,91,227,.2)":"";
+function loteToggle(sid, row){
+  if(loteSelected.has(sid)){
+    loteSelected.delete(sid);
+    row.style.background="";
+    row.style.outline="none";
+  } else {
+    loteSelected.add(sid);
+    row.style.background="rgba(45,91,227,.2)";
+    row.style.outline="2px solid var(--navy)";
+  }
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
@@ -1285,7 +1290,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v1.27";
+const APP_VERSION="v1.28";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2161,6 +2166,7 @@ function deleteLog(lid){
 // pagosSearch global for persistence while tab open
 let pagosSearch="";
 let pagosLoteMode=false;
+let loteSelected=new Set(); // track selected student IDs in memory
 let pagosFiltro="todos"; // todos | pagados | pendientes
 let flujoDrafts=false; // toggle borradores en flujo proyectado
 let alumnosSearch="";
