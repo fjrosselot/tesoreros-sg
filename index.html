@@ -1021,7 +1021,7 @@ function renderPagos(){
   const wrapEnd=isDesktop()&&!pagosLoteMode?`</div>`:"";
   html+=wrap;
   const searchLow=pagosSearch.toLowerCase();
-  state.students.filter(s=>!s.paused).forEach(s=>{
+  [...state.students].filter(s=>!s.paused).sort((a,b)=>a.name.localeCompare(b.name,"es")).forEach(s=>{
     const inQuota=isInQuota(s.id,q);
     const paid=inQuota&&isPaid(s.id,q.id);
     const searchHide=searchLow&&!s.name.toLowerCase().includes(searchLow);
@@ -1281,7 +1281,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v1.25";
+const APP_VERSION="v1.26";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
