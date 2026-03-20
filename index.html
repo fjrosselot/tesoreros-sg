@@ -565,6 +565,7 @@ function inferGender(name){
   return"m";
 }
 function ensureGenders(){
+  if(!state||!state.students)return;
   let changed=false;
   state.students=state.students.map(s=>{
     if(!s.gender){changed=true;return{...s,gender:inferGender(s.name)};}
@@ -628,7 +629,6 @@ function fmtTs(ts){
 document.getElementById("pin-input").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
 
 function startApp(admin){
-  ensureGenders();
   isAdmin = !!admin;
   document.getElementById("login").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
@@ -639,6 +639,7 @@ function startApp(admin){
   document.getElementById("content-desk").innerHTML=loadingHtml;
   window._fbStartPolling(function(val){
     state=mergeState(val);
+    ensureGenders();
     render();
   });
 }
