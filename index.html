@@ -1168,8 +1168,8 @@ function renderAlumnos(){
   // Gender + paused filter pills
   html+=`<div class="filter-row" style="margin-bottom:8px">
     <button class="f-cat${alumnosGender==="all"?" active":""}" onclick="alumnosGender='all';render()">👥 Todos</button>
-    <button class="f-cat${alumnosGender==="f"?" active":""}" onclick="alumnosGender='f';render()">👩 Niñas</button>
-    <button class="f-cat${alumnosGender==="m"?" active":""}" onclick="alumnosGender='m';render()">👦 Niños</button>
+    <button class="f-cat${alumnosGender==="f"?" active":""}" onclick="alumnosGender='f';render()">♀️ Niñas</button>
+    <button class="f-cat${alumnosGender==="m"?" active":""}" onclick="alumnosGender='m';render()">♂️ Niños</button>
     ${pausedCount>0?`<button class="f-cat${alumnosGender==="paused"?" active":""}" onclick="alumnosGender='paused';render()">⏸ Pausados</button>`:""}
   </div>`;
   html+=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${alumnosSearch}" oninput="filterAlumnos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
