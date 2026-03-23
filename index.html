@@ -1283,7 +1283,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v1.32";
+const APP_VERSION="v1.33";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2424,40 +2424,40 @@ function interpretAIInput(){
   const btn=document.getElementById("ai-interpret-btn");
   if(!resultEl||!btn)return;
 
-  resultEl.innerHTML=`<div class="ai-thinking">⏳ Interpretando...</div>`;
+  resultEl.innerHTML='<div class="ai-thinking">⏳ Interpretando...</div>';
   btn.disabled=true;
 
-  // Build context for Claude
   const activeQuotas=state.quotas.filter(q=>!q.draft).map(q=>({id:q.id,name:q.name,amount:q.amount}));
   const studentList=state.students.map(s=>({id:s.id,name:s.name}));
-  const systemPrompt=`Eres un asistente para una app de gestión de pagos de un comité escolar chileno.
-Tu tarea es interpretar instrucciones en lenguaje natural y convertirlas en una acción concreta.
-
-Cuotas activas: ${JSON.stringify(activeQuotas)}
-Alumnos: ${JSON.stringify(studentList)}
-Fecha hoy: ${hoy()}
-
-Responde SOLO con un JSON con este formato exacto, sin texto adicional:
-{
-  "action": "payment" | "unknown",
-  "studentId": "id del alumno",
-  "studentName": "nombre completo del alumno",
-  "quotaId": "id de la cuota",
-  "quotaName": "nombre de la cuota",
-  "amount": número,
-  "date": "YYYY-MM-DD",
-  "confidence": "alta" | "media" | "baja",
-  "confirmMessage": "frase en español resumiendo la acción a confirmar",
-  "errorMessage": "si no puedes interpretar, explica por qué"
-}
-Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y explica en errorMessage.`;
+  const systemPrompt='Eres un asistente para una app de gestión de pagos de un comité escolar chileno.\n'
+    +'Tu tarea es interpretar instrucciones en lenguaje natural y convertirlas en una o más acciones concretas.\n\n'
+    +'Cuotas activas: '+JSON.stringify(activeQuotas)+'\n'
+    +'Alumnos: '+JSON.stringify(studentList)+'\n'
+    +'Fecha hoy: '+hoy()+'\n\n'
+    +'Responde SOLO con un array JSON con este formato exacto, sin texto adicional:\n'
+    +'[\n'
+    +'  {\n'
+    +'    "action": "payment" | "unknown",\n'
+    +'    "studentId": "id del alumno",\n'
+    +'    "studentName": "nombre completo del alumno",\n'
+    +'    "quotaId": "id de la cuota",\n'
+    +'    "quotaName": "nombre de la cuota",\n'
+    +'    "amount": numero,\n'
+    +'    "date": "YYYY-MM-DD",\n'
+    +'    "confidence": "alta" | "media" | "baja",\n'
+    +'    "confirmMessage": "frase en espanol resumiendo la accion a confirmar",\n'
+    +'    "errorMessage": "si no puedes interpretar, explica por que"\n'
+    +'  }\n'
+    +']\n'
+    +'Si la instruccion menciona multiples pagos (varios alumnos o varias cuotas), incluye un objeto por cada pago.\n'
+    +'Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y explica en errorMessage.';
 
   fetch("https://claude-proxy-vert.vercel.app/api/proxy",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
       model:"claude-sonnet-4-20250514",
-      max_tokens:500,
+      max_tokens:1500,
       system:systemPrompt,
       messages:[{role:"user",content:text}]
     })
@@ -2465,18 +2465,39 @@ Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y ex
   .then(function(r){return r.json();})
   .then(function(data){
     try{
-      // Handle API errors
       if(data.error){throw new Error(data.error.message||JSON.stringify(data.error));}
-      if(!data.content||!data.content[0]){throw new Error("Respuesta vacía del servidor");}
+      if(!data.content||!data.content[0]){throw new Error("Respuesta vacia del servidor");}
       const raw=data.content[0].text.replace(/```json|```/g,"").trim();
       const parsed=JSON.parse(raw);
-      window._aiParsed=parsed;
+      const items=Array.isArray(parsed)?parsed:[parsed];
+      window._aiParsed=items;
 
-      if(parsed.action==="unknown"||!parsed.studentId||!parsed.quotaId){
-        resultEl.innerHTML=`<div class="ai-confirm" style="border-color:var(--red)">
-          <div style="color:var(--red);font-weight:600">❌ No pude interpretar</div>
-          <div class="ai-confirm-detail">${parsed.errorMessage||"Intenta ser más específico con el nombre del alumno y la cuota."}</div>
-        </div>`;
+      let html='';
+      let validCount=0;
+      items.forEach(function(p){
+        if(p.action==="unknown"||!p.studentId||!p.quotaId){
+          html+='<div class="ai-confirm" style="border-color:var(--red);margin-bottom:6px">'
+            +'<div style="color:var(--red);font-weight:600">❌ No pude interpretar</div>'
+            +'<div class="ai-confirm-detail">'+(p.errorMessage||"Intenta ser mas especifico.")+'</div>'
+            +'</div>';
+        }else{
+          validCount++;
+          const cc=p.confidence==="alta"?"#3dd68c":p.confidence==="media"?"#f5c842":"#f16060";
+          html+='<div class="ai-confirm" style="margin-bottom:6px">'
+            +'<div class="ai-confirm-name">✓ '+p.confirmMessage+'</div>'
+            +'<div class="ai-confirm-detail">'
+            +'Alumno: '+p.studentName+'<br>'
+            +'Cuota: '+p.quotaName+'<br>'
+            +'Monto: '+fmt(p.amount)+'<br>'
+            +'Fecha: '+p.date+'<br>'
+            +'<span style="color:'+cc+'">Confianza: '+p.confidence+'</span>'
+            +'</div>'
+            +'</div>';
+        }
+      });
+      resultEl.innerHTML=html;
+
+      if(validCount===0){
         btn.disabled=false;
         btn.textContent="Reintentar";
         btn.removeEventListener("click",interpretAIInput);
@@ -2484,49 +2505,39 @@ Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y ex
         return;
       }
 
-      const confidenceColor=parsed.confidence==="alta"?"#3dd68c":parsed.confidence==="media"?"#f5c842":"#f16060";
-      resultEl.innerHTML=`<div class="ai-confirm">
-        <div class="ai-confirm-name">✓ ${parsed.confirmMessage}</div>
-        <div class="ai-confirm-detail">
-          Alumno: ${parsed.studentName}<br>
-          Cuota: ${parsed.quotaName}<br>
-          Monto: ${fmt(parsed.amount)}<br>
-          Fecha: ${parsed.date}<br>
-          <span style="color:${confidenceColor}">Confianza: ${parsed.confidence}</span>
-        </div>
-      </div>`;
-
       btn.disabled=false;
-      btn.textContent="✓ Confirmar";
+      btn.textContent=validCount===1?"✓ Confirmar":"✓ Confirmar "+validCount+" pagos";
       btn.style.background="var(--green)";
       btn.removeEventListener("click",interpretAIInput);
       btn.addEventListener("click",function confirmAI(){
-        const p=window._aiParsed;
-        if(!p)return;
-        // Check if already paid
-        if(isPaid(p.studentId,p.quotaId)){
-          showToast("Este alumno ya pagó esta cuota","err");
-          closeSheet();return;
-        }
-        const q=state.quotas.find(x=>x.id===p.quotaId);
-        const partial=getSP(p.studentId,p.quotaId).reduce((x,pmt)=>x+pmt.amount,0);
-        const sAmt=getStudentAmount(p.studentId,q);
-        const rem=sAmt-partial;
-        const amount=Math.min(p.amount,rem);
-        state.payments.push({id:uid(),studentId:p.studentId,quotaId:p.quotaId,amount,date:p.date,note:"Entrada rápida IA"});
-        addLog("✨",`Pago vía IA: ${p.studentName} — ${fmt(amount)} en "${p.quotaName}"`);
+        const list=window._aiParsed;
+        if(!list)return;
+        let registrados=0;
+        list.forEach(function(p){
+          if(p.action==="unknown"||!p.studentId||!p.quotaId)return;
+          if(isPaid(p.studentId,p.quotaId))return;
+          const q=state.quotas.find(x=>x.id===p.quotaId);
+          if(!q)return;
+          const partial=getSP(p.studentId,p.quotaId).reduce(function(x,pmt){return x+pmt.amount;},0);
+          const rem=getStudentAmount(p.studentId,q)-partial;
+          if(rem<=0)return;
+          const amount=Math.min(p.amount,rem);
+          state.payments.push({id:uid(),studentId:p.studentId,quotaId:p.quotaId,amount,date:p.date,note:"Entrada rapida IA"});
+          addLog("✨","Pago via IA: "+p.studentName+" — "+fmt(amount)+" en \""+p.quotaName+"\"");
+          registrados++;
+        });
         saveData();closeSheet();render();
-        showToast("✓ Pago registrado");
+        showToast(registrados===1?"✓ Pago registrado":"✓ "+registrados+" pagos registrados");
         window._aiParsed=null;
       });
     }catch(e){
-      resultEl.innerHTML=`<div class="ai-confirm" style="border-color:var(--red)"><div style="color:var(--red)">❌ Error: ${e.message||"Error al procesar respuesta"}</div></div>`;
+      resultEl.innerHTML='<div class="ai-confirm" style="border-color:var(--red)"><div style="color:var(--red)">❌ Error: '+(e.message||"Error al procesar respuesta")+'</div></div>';
       btn.disabled=false;
       btn.textContent="Reintentar";
     }
   })
-  .catch(function(e){
-    resultEl.innerHTML=`<div class="ai-confirm" style="border-color:var(--red)"><div style="color:var(--red)">❌ Error de conexión</div></div>`;
+  .catch(function(){
+    resultEl.innerHTML='<div class="ai-confirm" style="border-color:var(--red)"><div style="color:var(--red)">❌ Error de conexion</div></div>';
     btn.disabled=false;
   });
 }
