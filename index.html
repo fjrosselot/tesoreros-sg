@@ -431,7 +431,7 @@ input,select{font-family:'Roboto',sans-serif;}
     <div class="login-badge" style="font-size:22px;font-weight:700">T</div>
     <div class="login-title">Tesoreros App</div>
     <div class="login-sub">Comités de delegados y tesoreros</div>
-    <div id="login-version" style="font-size:10px;color:var(--subtle);margin-top:2px;margin-bottom:4px;opacity:0.7"></div>
+    <div id="login-version" style="font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:4px"></div>
     <div class="field" style="text-align:left;margin-bottom:12px">
       <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Colegio</label>
       <input id="l-colegio" type="text" placeholder="Nombre del colegio" autocomplete="off" autocorrect="off" autocapitalize="off"
@@ -1536,7 +1536,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.2";
+const APP_VERSION="v2.3";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
