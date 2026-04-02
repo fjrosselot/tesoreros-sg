@@ -153,9 +153,13 @@ git checkout v2
 git add index.html
 git commit -m "feat/fix vX.Y: descripción"
 git push origin v2
-# Vercel auto-deploya desde rama v2 → tesoreros-app.vercel.app
+# El hook post-push (.git/hooks/post-push) ejecuta "vercel --prod" automáticamente
+# → despliega a tesoreros-app.vercel.app tras cada push a v2
 # main NO se toca hasta validación completa de v2
 ```
+
+> **Nota deploy:** Vercel no tiene la rama `v2` como Production Branch (limitación plan Hobby).
+> El hook local resuelve esto. Si el hook falla, correr manualmente: `vercel --prod --yes`
 
 ## Superadmin — Funciones JS
 | Función | Descripción |
