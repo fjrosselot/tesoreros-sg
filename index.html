@@ -442,6 +442,12 @@ input,select{font-family:'Roboto',sans-serif;}
       <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Curso</label>
       <input id="l-curso" type="text" placeholder="Ej: 4B, 3D" autocomplete="off" autocorrect="off" autocapitalize="characters"
         style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
+        onkeydown="if(event.key==='Enter')document.getElementById('l-anio').focus()">
+    </div>
+    <div class="field" style="text-align:left;margin-bottom:12px">
+      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Año</label>
+      <input id="l-anio" type="text" placeholder="Ej: 2026" maxlength="4" autocomplete="off" autocorrect="off" inputmode="numeric"
+        style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
         onkeydown="if(event.key==='Enter')document.getElementById('l-pin').focus()">
     </div>
     <div class="field" style="text-align:left;margin-bottom:12px">
@@ -638,7 +644,12 @@ function getCursoId()      { return _SESSION ? _SESSION.cursoId : ""; }
 
 function _initSession(ses){
   _SESSION = ses;
-  _FB_URL = _FB_BASE + "/datos/" + ses.colegioId + "/" + ses.cursoId;
+  if(ses.temporada){
+    _FB_URL = _FB_BASE + "/datos/" + ses.colegioId + "/" + ses.cursoId + "/" + ses.temporada;
+  } else {
+    // Modo legacy: cursos sin temporadas configuradas
+    _FB_URL = _FB_BASE + "/datos/" + ses.colegioId + "/" + ses.cursoId;
+  }
 }
 
 // ── LOGIN v2 ──────────────────────────────────────────────────
@@ -677,9 +688,10 @@ async function doLogin(){
 
   const colegioRaw = (document.getElementById("l-colegio").value||"").trim();
   const cursoRaw   = (document.getElementById("l-curso").value||"").trim();
+  const anioRaw    = (document.getElementById("l-anio").value||"").trim();
   const pin        = (document.getElementById("l-pin").value||"").trim();
 
-  if(!colegioRaw || !cursoRaw || !pin){ showLoginErr("Completa todos los campos."); return; }
+  if(!colegioRaw || !cursoRaw || !anioRaw || !pin){ showLoginErr("Completa todos los campos."); return; }
 
   const btn = document.querySelector(".login-btn");
   btn.disabled = true; btn.textContent = "Verificando...";
@@ -694,6 +706,20 @@ async function doLogin(){
     const meta  = await mResp.json();
 
     if(!meta || !meta.activo){ loginFail(btn); return; }
+
+    // Validar año/temporada
+    const anioNorm = anioRaw.replace(/[^0-9]/g,"");
+    let temporada = null;
+    if(meta.temporadas){
+      // Curso con temporadas configuradas: el año debe estar habilitado
+      if(!meta.temporadas[anioNorm] || meta.temporadas[anioNorm] === false){
+        loginFail(btn); return;
+      }
+      temporada = anioNorm;
+    } else {
+      // Modo legacy: sin temporadas configuradas, aceptar cualquier año (path sin año)
+      temporada = null;
+    }
 
     // Leer nombre del colegio
     const cResp    = await fetch(_FB_BASE + "/plataforma/colegios/" + colegioId + "/nombre.json");
@@ -714,7 +740,7 @@ async function doLogin(){
     const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36);
 
     // Guardar sesión
-    const ses = { colegioId, cursoId, rol, token, meta, colegioNombre, cursoNombre: meta.nombre || cursoId };
+    const ses = { colegioId, cursoId, rol, token, meta, colegioNombre, cursoNombre: meta.nombre || cursoId, temporada };
     sessionStorage.setItem("sesionv2", JSON.stringify(ses));
 
     // Registrar token en Firebase (auditoría)
@@ -924,10 +950,11 @@ function startApp(admin){
   updateAdminUI();
   // Actualizar textos dinámicos del header/sidebar
   var cn = getCursoNombre(), col = getColegioNombre();
+  var yr = (_SESSION && _SESSION.temporada) ? " · " + _SESSION.temporada : "";
   ["sidebar-badge","mob-badge"].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=cn;});
   ["sidebar-title","mob-title"].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent="Curso "+cn;});
-  var ss = document.getElementById("sidebar-sub"); if(ss) ss.textContent = col;
-  var mhs = document.getElementById("mob-header-sub"); if(mhs) mhs.innerHTML = col + " &nbsp;·&nbsp; <span id='fb-status-mob' style='font-size:10px'>⏳</span>";
+  var ss = document.getElementById("sidebar-sub"); if(ss) ss.textContent = col + yr;
+  var mhs = document.getElementById("mob-header-sub"); if(mhs) mhs.innerHTML = col + yr + " &nbsp;·&nbsp; <span id='fb-status-mob' style='font-size:10px'>⏳</span>";
   ["app-version","mob-version"].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=APP_VERSION;});
   var loadingHtml = '<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
   document.getElementById("content-mob").innerHTML = loadingHtml;
@@ -1559,7 +1586,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.4";
+const APP_VERSION="v2.5";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2911,15 +2938,23 @@ function renderSuperAdmin(panel, colegiosData){
       } else {
         cursoIds.forEach(function(curid){
           const cur = cursos[curid];
-          html += '<div class="sa-curso-row">';
-          html += '<div><div class="sa-curso-name">'+(cur.nombre||curid)+'</div>';
+          // Construir lista de temporadas habilitadas
+          var temps = cur.temporadas || {};
+          var tempActivos = Object.keys(temps).filter(function(a){ return temps[a] === true; }).sort();
+          var tempStr = tempActivos.length ? tempActivos.join(", ") : '<em style="color:var(--muted)">Sin temporadas — modo legacy</em>';
+          html += '<div class="sa-curso-row" style="flex-wrap:wrap;gap:6px">';
+          html += '<div style="flex:1;min-width:0">';
+          html += '<div class="sa-curso-name">'+(cur.nombre||curid)+'</div>';
           html += '<div class="sa-curso-meta">PIN delegado: <code>'+cur.pinAdmin+'</code> · PIN lectura: <code>'+(cur.pinLectura||'—')+'</code>';
           if(cur.tesorero && cur.tesorero.nombre) html += ' · Tesorero: '+cur.tesorero.nombre;
-          html += '</div></div>';
-          html += '<div style="display:flex;align-items:center;gap:8px">';
+          html += '</div>';
+          html += '<div style="font-size:11px;color:var(--muted);margin-top:3px">Años: '+tempStr+'</div>';
+          html += '</div>';
+          html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">';
           html += '<span class="sa-badge '+(cur.activo?"sa-badge-ok":"sa-badge-off")+'">'+(cur.activo?"Activo":"Inactivo")+'</span>';
-          html += '<button onclick="saEditCurso(\''+cid+'\',\''+curid+'\')" class="icon-btn">✏️</button>';
+          html += '<button onclick="saEditCurso(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Editar curso">✏️</button>';
           html += '<button onclick="saImportAlumnos(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Importar alumnos">👥</button>';
+          html += '<button onclick="saManageTemporadas(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Gestionar años">📅</button>';
           html += '</div></div>';
         });
       }
@@ -2989,12 +3024,13 @@ async function saSaveCurso(colegioId){
   const tesNom   = document.getElementById("sa-cur-tesnom").value.trim();
   const tesEmail = document.getElementById("sa-cur-tesemail").value.trim().toLowerCase();
   if(!nombre||!curid||!pinAdmin){ showToast("Completa nombre, ID y PIN Delegado","err"); return; }
-  const obj = { nombre, pinAdmin, pinLectura:pinLect, activo:true, tesorero:{nombre:tesNom, email:tesEmail} };
+  const anioActual = String(new Date().getFullYear());
+  const obj = { nombre, pinAdmin, pinLectura:pinLect, activo:true, tesorero:{nombre:tesNom, email:tesEmail}, temporadas:{[anioActual]:true} };
   const r = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+".json?auth="+_SA_FB_SECRET,{
     method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(obj)
   });
   if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
-  closeSheet(); showToast("✓ Curso creado"); openSuperAdmin();
+  closeSheet(); showToast("✓ Curso creado con temporada "+anioActual); openSuperAdmin();
 }
 function saEditCurso(colegioId, curid){
   const cur = _saStore['cur:'+colegioId+':'+curid] || {};
@@ -3021,6 +3057,117 @@ async function saUpdateCurso(colegioId, curid){
   });
   if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
   closeSheet(); showToast("✓ Curso actualizado"); openSuperAdmin();
+}
+
+// ── GESTIÓN DE TEMPORADAS ─────────────────────────────────────
+function saManageTemporadas(colegioId, curid){
+  const cur = _saStore['cur:'+colegioId+':'+curid] || {};
+  const temps = cur.temporadas || {};
+  const anios = Object.keys(temps).sort().reverse();
+
+  let rows = "";
+  if(!anios.length){
+    rows = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Sin temporadas configuradas.</div>';
+  } else {
+    anios.forEach(function(a){
+      const activo = temps[a] === true;
+      rows += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">';
+      rows += '<span style="font-size:15px;font-weight:600">'+a+'</span>';
+      rows += '<div style="display:flex;gap:8px;align-items:center">';
+      rows += '<span class="sa-badge '+(activo?"sa-badge-ok":"sa-badge-off")+'">'+(activo?"Habilitado":"Deshabilitado")+'</span>';
+      if(activo){
+        rows += '<button onclick="saToggleTemporada(\''+colegioId+'\',\''+curid+'\',\''+a+'\',false)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">Deshabilitar</button>';
+      } else {
+        rows += '<button onclick="saToggleTemporada(\''+colegioId+'\',\''+curid+'\',\''+a+'\',true)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--green);background:transparent;color:var(--green);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">Habilitar</button>';
+      }
+      rows += '</div></div>';
+    });
+  }
+
+  // Sección migración: solo si no hay temporadas (modo legacy)
+  var migrSection = "";
+  if(!anios.length){
+    const anioActual = String(new Date().getFullYear());
+    migrSection = '<div style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border2)">'
+      + '<div style="font-size:13px;font-weight:600;margin-bottom:6px">🔄 Migrar datos existentes</div>'
+      + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Mueve los datos actuales del curso al año indicado y habilita esa temporada.</div>'
+      + '<div style="display:flex;gap:8px;align-items:center">'
+      + '<input id="sa-migr-anio" type="text" value="'+anioActual+'" maxlength="4" inputmode="numeric" style="width:80px;padding:9px 10px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif">'
+      + '<button onclick="saMigrarDatos(\''+colegioId+'\',\''+curid+'\')" style="flex:1;padding:9px 14px;border-radius:var(--r);background:var(--navy);border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">Migrar a ese año</button>'
+      + '</div></div>';
+  }
+
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)">'
+    + '<div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    + '<div class="sheet-header"><span class="sheet-title">📅 Temporadas — ' + (cur.nombre||curid) + '</span><button class="sheet-close" onclick="closeSheet()">✕</button></div>'
+    + '<div class="sheet-body">'
+    + rows
+    + migrSection
+    + '<div style="margin-top:16px">'
+    + field("Agregar año","sa-temp-nuevo","Ej: 2027")
+    + '</div>'
+    + '</div>'
+    + '<div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cerrar</button>'
+    + '<button class="btn-save" onclick="saSaveTemporada(\''+colegioId+'\',\''+curid+'\')">Agregar año</button>'
+    + '</div></div></div>';
+}
+
+async function saSaveTemporada(colegioId, curid){
+  const anio = (document.getElementById("sa-temp-nuevo").value||"").trim().replace(/[^0-9]/g,"");
+  if(!anio || anio.length !== 4){ showToast("Ingresa un año válido (4 dígitos)","err"); return; }
+  const r = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+"/temporadas/"+anio+".json?auth="+_SA_FB_SECRET,{
+    method:"PUT", headers:{"Content-Type":"application/json"}, body:"true"
+  });
+  if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
+  showToast("✓ Año "+anio+" agregado");
+  await openSuperAdmin();
+  saManageTemporadas(colegioId, curid);
+}
+
+async function saToggleTemporada(colegioId, curid, anio, habilitado){
+  const r = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+"/temporadas/"+anio+".json?auth="+_SA_FB_SECRET,{
+    method:"PUT", headers:{"Content-Type":"application/json"}, body: habilitado ? "true" : "false"
+  });
+  if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
+  showToast("✓ Año "+anio+" "+(habilitado?"habilitado":"deshabilitado"));
+  await openSuperAdmin();
+  saManageTemporadas(colegioId, curid);
+}
+
+async function saMigrarDatos(colegioId, curid){
+  const anio = (document.getElementById("sa-migr-anio").value||"").trim().replace(/[^0-9]/g,"");
+  if(!anio || anio.length !== 4){ showToast("Año inválido","err"); return; }
+
+  // Leer datos actuales (legacy path)
+  const r = await fetch(_FB_BASE+"/datos/"+colegioId+"/"+curid+".json");
+  const datos = await r.json();
+
+  if(!datos || typeof datos !== "object"){
+    showToast("No hay datos en el path legacy para migrar","err"); return;
+  }
+
+  // Verificar que no haya ya datos en el destino
+  const rCheck = await fetch(_FB_BASE+"/datos/"+colegioId+"/"+curid+"/"+anio+".json");
+  const check = await rCheck.json();
+  if(check && typeof check === "object"){
+    showToast("Ya existen datos en /datos/"+colegioId+"/"+curid+"/"+anio+". Migración abortada.","err"); return;
+  }
+
+  // Copiar al path con año
+  const rWrite = await fetch(_FB_BASE+"/datos/"+colegioId+"/"+curid+"/"+anio+".json?auth="+_SA_FB_SECRET,{
+    method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(datos)
+  });
+  if(!rWrite.ok){ const e=await rWrite.json(); showToast("Error al escribir destino: "+(e.error||rWrite.status),"err"); return; }
+
+  // Habilitar temporada en plataforma
+  const rTemp = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+"/temporadas/"+anio+".json?auth="+_SA_FB_SECRET,{
+    method:"PUT", headers:{"Content-Type":"application/json"}, body:"true"
+  });
+  if(!rTemp.ok){ showToast("Datos copiados pero error al registrar temporada","err"); return; }
+
+  showToast("✓ Datos migrados a "+anio+". Verifica y luego elimina el path legacy manualmente si es necesario.");
+  await openSuperAdmin();
+  saManageTemporadas(colegioId, curid);
 }
 
 // ── IMPORTADOR DE ALUMNOS ─────────────────────────────────────
