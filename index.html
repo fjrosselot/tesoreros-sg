@@ -1177,11 +1177,16 @@ function render(){
 
 function getSP(sid,qid){return state.payments.filter(p=>p.studentId===sid&&p.quotaId===qid);}
 function isInQuota(sid,q){
+  if(q.tipo==="actividad"){
+    return q.compromisos&&(q.compromisos[sid]||0)>0;
+  }
   if(!q.studentIds||q.studentIds.length===0)return true;
   return q.studentIds.includes(sid);
 }
 function getStudentAmount(sid,q){
-  // Returns the amount this specific student owes for this quota
+  if(q.tipo==="actividad"){
+    return ((q.compromisos&&q.compromisos[sid])||0)*(q.precioUnidad||0);
+  }
   if(q.amounts&&q.amounts[sid]!==undefined)return q.amounts[sid];
   return q.amount;
 }
@@ -1193,6 +1198,10 @@ function isPaid(sid,qid){
   return getSP(sid,qid).reduce((s,p)=>s+p.amount,0)>=amt;
 }
 function getQuotaStudents(q){
+  if(q.tipo==="actividad"){
+    var comp=q.compromisos||{};
+    return state.students.filter(function(s){return(comp[s.id]||0)>0;});
+  }
   if(q.studentIds&&q.studentIds.length>0) return state.students.filter(s=>q.studentIds.includes(s.id));
   return state.students;
 }
