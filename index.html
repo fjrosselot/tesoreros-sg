@@ -1312,8 +1312,9 @@ function renderResumen(){
 }
 
 function renderCuotas(){
-  const activeQ=state.quotas.filter(q=>!q.draft);
-  const drafts=state.quotas.filter(q=>q.draft);
+  const activeQ=state.quotas.filter(q=>!q.draft&&q.tipo!=="actividad");
+  const drafts=state.quotas.filter(q=>q.draft&&q.tipo!=="actividad");
+  const actividades=state.quotas.filter(q=>q.tipo==="actividad");
   let html="";
 
   // Borradores
@@ -1363,6 +1364,40 @@ function renderCuotas(){
   });
   if(!isDesktop()&&isAdmin) html+=`<button class="add-btn" onclick="openAddQuota()">＋ Nueva cuota</button>`;
   html+=`</div>`;
+  if(actividades.length){
+    html+='<div class="section"><div class="sec-title">🎯 Actividades colectivas ('+actividades.length+')</div>';
+    actividades.forEach(function(q){
+      var comp=q.compromisos||{};
+      var totalU=Object.values(comp).reduce(function(s,v){return s+v;},0);
+      var totalM=totalU*(q.precioUnidad||0);
+      var pct=q.metaMinima>0?Math.min(100,Math.round(totalU/q.metaMinima*100)):0;
+      var gap=Math.max(0,q.metaMinima-totalU);
+      var estadoBadge=q.estado==="cerrada"
+        ?'<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surface2);color:var(--muted)">Cerrada</span>'
+        :'<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--green-dim);color:var(--green)">Abierta</span>';
+      html+='<div class="card" style="margin-bottom:10px">'
+        +'<div class="card-top">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div class="card-title">'+q.name+'</div>'
+        +'<div class="card-meta">'+fmt(q.precioUnidad)+'/u · Meta: '+q.metaMinima+' · '+q.date+'</div>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+        +estadoBadge
+        +(isAdmin?'<button class="icon-btn" onclick="requireAdmin(function(){openActividadPanel(\''+q.id+'\')})">⚙️</button>':'')
+        +'<button class="icon-btn" onclick="openActividadPanel(\''+q.id+'\')" title="Ver">👁</button>'
+        +(isAdmin?'<button class="icon-btn" onclick="requireAdmin(function(){deleteQuota(\''+q.id+'\')})">🗑️</button>':'')
+        +'</div>'
+        +'</div>'
+        +'<div class="prog-bar"><div class="prog-fill" style="width:'+pct+'%;background:'+(pct>=100?'#3dd68c':'#2d5be3')+'"></div></div>'
+        +'<div class="card-footer">'
+        +'<span style="color:#3dd68c">✓ '+totalU+' comprometidas</span>'
+        +'<span style="color:'+(gap>0?'var(--yellow)':'#3dd68c')+'">'+( gap>0?'⚠ Faltan '+gap:'✓ Meta cubierta')+'</span>'
+        +'<span style="color:#7a85a0">'+fmt(totalM)+' esperado</span>'
+        +'</div>'
+        +'</div>';
+    });
+    html+='</div>';
+  }
   return html;
 }
 
