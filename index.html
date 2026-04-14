@@ -2245,7 +2245,7 @@ function cerrarActividad(id){
   var gapMonto=gap*(q.precioUnidad||0);
   var cleanComp={};
   Object.keys(comp).forEach(function(sid){if(comp[sid]>0)cleanComp[sid]=comp[sid];});
-  var gastoId=null;
+  var gastoId=q.gastoId||null;
   if(gap>0){
     var msg="Faltan "+gap+" unidades para la meta.\nEl curso cubriría "+fmt(gapMonto)+" del saldo.\n\n¿Registrar como gasto?";
     if(confirm(msg)){
