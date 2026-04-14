@@ -1838,13 +1838,36 @@ function openAddQuota(){
   window._quotaAllStudents = true;
   window._ppSegmented = false;
   // f-amount shown only for "equal" and "exceptions" modes, hidden for perperson
-  var qBodyHtml = field("Nombre","f-name","ej: Asado fin de año")
-    +dateField("Fecha","f-date",hoy())
-    +draftToggle
+  var typeSelector = '<div style="display:flex;gap:8px;margin-bottom:16px">'
+    + '<button type="button" id="qtype-cuota" onclick="qSetType(\'cuota\')" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer">📋 Cuota</button>'
+    + '<button type="button" id="qtype-actividad" onclick="qSetType(\'actividad\')" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px;cursor:pointer">🎯 Actividad colectiva</button>'
+    + '<input type="hidden" id="q-tipo-val" value="cuota">'
+    + '</div>';
+
+  var actividadForm = '<div id="q-actividad-form" style="display:none">'
+    + field("Nombre","act-name","ej: Bingo Solidario")
+    + moneyInput("Precio por unidad ($)","act-precio","ej: 10.000")
+    + '<div class="field"><label>Meta mínima (unidades)</label><input id="act-meta" type="number" min="1" placeholder="ej: 15" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"></div>'
+    + dateField("Fecha","act-date",hoy())
+    + '</div>';
+
+  var qBodyHtml = typeSelector
+    + '<div id="q-cuota-form">'
+    + field("Nombre","f-name","ej: Asado fin de año")
+    + dateField("Fecha","f-date",hoy())
+    + draftToggle
     + '<div id="q-monto-wrap">'+moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")+'</div>'
-    +allStudentsHTML;
+    + allStudentsHTML
+    + '</div>'
+    + actividadForm;
   document.getElementById("modal-container").innerHTML=`<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">📋 Nueva cuota</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">${qBodyHtml}</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" id="quota-save-btn">Guardar</button></div></div></div>`;
-  document.getElementById("quota-save-btn").addEventListener("click", saveAddQuota);
+  document.getElementById("quota-save-btn").addEventListener("click", function(){
+    if(document.getElementById("q-tipo-val").value === "actividad"){
+      saveAddActividad();
+    } else {
+      saveAddQuota();
+    }
+  });
 }
 function qToggleAll(all){
   window._quotaAllStudents = all;
