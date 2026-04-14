@@ -121,6 +121,12 @@ input,select{font-family:'Roboto',sans-serif;}
     padding:10px 12px;border-radius:var(--r);border:none;background:transparent;
     color:var(--muted);font-size:13px;text-align:left;cursor:pointer;}
   .sidebar-exit:hover{background:var(--surface2);color:var(--text);}
+  .theme-toggle{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 0 4px;cursor:pointer;}
+  .toggle-track{width:34px;height:20px;border-radius:10px;background:var(--border2);position:relative;transition:background .2s;}
+  .toggle-track[data-theme="dark"]{background:var(--navy);}
+  .toggle-thumb{width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+  .toggle-track[data-theme="dark"] .toggle-thumb{transform:translateX(14px);}
+  .toggle-emoji{font-size:14px;line-height:1;}
 
   /* Desktop main area */
   .desk-main{flex:1;display:flex;flex-direction:column;min-width:0;}
@@ -562,6 +568,11 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="sidebar-exit" id="desk-backup-btn" onclick="requireAdmin(downloadBackup)" style="display:none;margin-bottom:2px">💾 Respaldar datos</button>
       <button class="sidebar-exit" id="desk-restore-btn" onclick="requireAdmin(openRestore)" style="display:none;margin-bottom:4px">📤 Restaurar datos</button>
       <button class="sidebar-exit" id="desk-mycourses-btn" onclick="volverMisCursos()" style="display:none;margin-bottom:4px">📚 Mis cursos</button>
+      <div class="theme-toggle" onclick="applyTheme(window._currentTheme==='dark'?'light':'dark')">
+        <span class="toggle-emoji">☀️</span>
+        <div class="toggle-track" id="theme-toggle-track"><div class="toggle-thumb"></div></div>
+        <span class="toggle-emoji">🌑</span>
+      </div>
       <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
       <div style="font-size:10px;color:var(--subtle);text-align:center;padding:6px 0;opacity:0.5" id="app-version"></div>
     </div>
