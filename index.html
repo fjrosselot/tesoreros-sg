@@ -7,14 +7,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 <style>
-:root{
-  --bg:#0f1117; --surface:#181c26; --surface2:#1e2335;
-  --border:#252d42; --border2:#2e3a55;
-  --text:#eef0f5; --muted:#7a85a0; --subtle:#323d57;
-  --navy:#2d5be3; --navy-dim:rgba(45,91,227,.15); --navy-light:#5b82f0;
-  --yellow:#f5c842; --yellow-dim:rgba(245,200,66,.12);
-  --green:#3dd68c; --green-dim:rgba(61,214,140,.1);
-  --red:#f16060; --red-dim:rgba(241,96,96,.1);
+body.theme-dark{
+  --bg:#161e2e; --surface:#1e2a3e; --surface2:#253347;
+  --border:#2d3f5c; --border2:#354a6e;
+  --text:#e2e8f5; --muted:#7a90b0; --subtle:#2d3f5c;
+  --navy:#4f7ef8; --navy-dim:rgba(79,126,248,.15); --navy-light:#7aa0fa;
+  --yellow:#fbbf24; --yellow-dim:rgba(251,191,36,.15);
+  --green:#34d399; --green-dim:rgba(52,211,153,.15);
+  --red:#f87171; --red-dim:rgba(241,113,113,.15);
+  --r:12px; --r-lg:16px;
+  --sidebar:220px;
+}
+body.theme-light{
+  --bg:#f1f5f9; --surface:#ffffff; --surface2:#f8fafc;
+  --border:#e2e8f0; --border2:#cbd5e1;
+  --text:#1a2340; --muted:#64748b; --subtle:#e2e8f0;
+  --navy:#2d5be3; --navy-dim:rgba(45,91,227,.08); --navy-light:#2d5be3;
+  --yellow:#d97706; --yellow-dim:rgba(217,119,6,.1);
+  --green:#16a34a; --green-dim:rgba(22,163,74,.1);
+  --red:#dc2626; --red-dim:rgba(220,38,38,.1);
   --r:12px; --r-lg:16px;
   --sidebar:220px;
 }
@@ -140,7 +151,7 @@ input,select{font-family:'Roboto',sans-serif;}
 }
 
 @media(min-width:1100px){
-  :root{--sidebar:240px;}
+  body.theme-dark,body.theme-light{--sidebar:240px;}
   .mob-content{padding:32px 40px;}
   .desk-topbar{padding:18px 40px;}
 }
