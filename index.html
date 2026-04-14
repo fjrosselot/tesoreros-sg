@@ -1402,7 +1402,7 @@ function renderCuotas(){
 }
 
 function renderPagos(){
-  const activeQuotas=state.quotas.filter(x=>!x.draft);
+  const activeQuotas=state.quotas.filter(x=>!x.draft&&x.tipo!=="actividad");
   if(!pagosSelQuota&&activeQuotas.length)pagosSelQuota=activeQuotas[0].id;
   if(pagosSelQuota&&state.quotas.find(x=>x.id===pagosSelQuota)?.draft)pagosSelQuota=activeQuotas[0]?.id||null;
   const q=state.quotas.find(x=>x.id===pagosSelQuota);
@@ -2180,7 +2180,7 @@ function openActividadPanel(id){
     ?'<div style="text-align:center;color:var(--muted);font-size:13px;padding:4px 0">Actividad cerrada'+(q.gastoId?'<span style="color:var(--green)"> · Gasto registrado ✓</span>':'')+'</div>'
     :'<div style="display:flex;gap:8px">'
     +'<button class="btn-cancel" onclick="closeSheet()">Cancelar</button>'
-    +'<button class="btn-save" onclick="saveActividadCompromisos(\''+id+'\')">Guardar</button>'
+    +(isAdmin?'<button class="btn-save" onclick="saveActividadCompromisos(\''+id+'\')">Guardar</button>':'')
     +(isAdmin?'<button onclick="requireAdmin(function(){cerrarActividad(\''+id+'\')})" style="padding:12px 16px;border-radius:var(--r);background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">Cerrar</button>':'')
     +'</div>';
 
@@ -2226,6 +2226,7 @@ function actUpdateHeader(){
 function saveActividadCompromisos(id){
   var q=state.quotas.find(function(x){return x.id===id;});
   if(!q)return;
+  if(q.estado==="cerrada"){showToast("Actividad ya cerrada","err");return;}
   var comp={};
   Object.keys(window._actCompromisos||{}).forEach(function(sid){
     if(window._actCompromisos[sid]>0)comp[sid]=window._actCompromisos[sid];
@@ -2239,6 +2240,7 @@ function saveActividadCompromisos(id){
 function cerrarActividad(id){
   var q=state.quotas.find(function(x){return x.id===id;});
   if(!q)return;
+  if(q.estado==="cerrada")return;
   var comp=window._actCompromisos||q.compromisos||{};
   var totalU=Object.values(comp).reduce(function(s,v){return s+v;},0);
   var gap=Math.max(0,q.metaMinima-totalU);
