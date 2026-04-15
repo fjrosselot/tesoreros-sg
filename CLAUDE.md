@@ -1,4 +1,4 @@
-# Tesoreros App — Contexto del Proyecto (v2.12)
+# Tesoreros App — Contexto del Proyecto (v2.15)
 
 ## Descripción
 Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vanilla (sin frameworks), Firebase Realtime Database para persistencia, Vercel para hosting. Multi-tenant: login con colegio + curso + PIN.
@@ -102,7 +102,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - **Estado global:** `state` con `{students, quotas, payments, expenses, log, saldoInicial}`
 - **Render:** `render()` → `getContent()` → `renderResumen/Cuotas/Pagos/Gastos/Alumnos/Pendientes/Reportes/Log()`
 - **Firebase:** `window._fbSave(state)` / `window._fbStartPolling(callback)`
-- **Versión visible:** `APP_VERSION = "v2.12"`
+- **Versión visible:** `APP_VERSION = "v2.15"`
 
 ## Pestañas (TAB_META)
 `resumen` → `cuotas` → `pagos` → `gastos` → `alumnos` → `pendientes` → `reportes` → `log`
@@ -125,6 +125,8 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Imagen compartir WhatsApp (Canvas API)
 - Datepicker custom en español
 - Toggle light/dark mode (slate blue dark / clean light)
+- Resumen con toggle "A la fecha / Proyectado" — KPIs consistentes por modo
+- Versión visible en sidebar desktop y header móvil
 
 ## Modo Lote (Pagos)
 - `loteSelected` = Set en memoria con student IDs
@@ -156,4 +158,9 @@ git checkout v2
 - Buscador móvil usa CSS show/hide (no re-renderiza contador)
 - IA limitada por cuota Gemini free tier
 - Las reglas de Firebase no validan el token (requeriría Firebase Auth real)
-- Bug form passwords (pendiente desde sesión 2026-04-13)
+
+## Features Próximas (backlog)
+- Link apoderado generado desde la app por el tesorero (sin pasar por superadmin)
+- Exportar estado de pagos (Excel/imagen compartible)
+- Recordatorios de deuda (texto pre-armado para WhatsApp)
+- Comprobante de pago individual por alumno

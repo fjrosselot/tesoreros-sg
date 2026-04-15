@@ -1,5 +1,22 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-15 12:30] — v2.13/v2.14/v2.15: fixes login + toggle proyectado + versión visible
+
+**Resumen:** 3 fixes de login (form password managers, remove trim(), emoji favicon). Toggle "A la fecha / Proyectado" en Resumen con KPIs consistentes — modo "a la fecha" muestra gastos reales (≤ hoy) vs ingresos reales, modo "proyectado" suma por recaudar de cuotas activas y todos los gastos incluyendo futuros, con detalle desglosado. Versión app visible en sidebar desktop y header móvil.
+
+**Archivos:** `index.html`
+
+**Decisiones:** Toggle persiste en localStorage. Actividades colectivas excluidas del cálculo de "por recaudar" (solo cuotas normales). Modo proyectado reutiliza la lógica del antiguo "Flujo proyectado" como sección de detalle. Favicon inline SVG sin archivo externo.
+
+**Pendientes:**
+- [ ] Bug form passwords (resuelto ✓)
+- [ ] Link apoderado generado desde la app (tesorero, sin pasar por superadmin)
+- [ ] Exportar estado de pagos (Excel/imagen)
+- [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
+- [ ] Comprobante de pago individual
+
+---
+
 ## [2026-04-14 23:55] — v2.11/v2.12: dark mode + fix paths Firebase + migración datos legacy
 
 **Resumen:** Implementación completa del toggle claro/oscuro (v2.11). Merge de v2 a main + deploy. Diagnóstico y corrección de bug crítico: `_initSession` usaba subpath `/2026/` en Firebase cuando la sesión tenía `temporada`, causando que datos (cuotas, pagos, gastos) se guardaran en path equivocado. Migración completa de datos legacy `/cursos/4B/` y subpath `/datos/sg/4B/2026/` al path correcto `/datos/sg/4B/`. Limpieza del nodo `/2026/` en Firebase.
