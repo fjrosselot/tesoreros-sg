@@ -576,7 +576,7 @@ input,select{font-family:'Roboto',sans-serif;}
         <span class="toggle-emoji">Dark 🌑</span>
       </div>
       <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
-      <div style="font-size:10px;color:var(--subtle);text-align:center;padding:6px 0;opacity:0.5" id="app-version"></div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;padding:6px 0" id="app-version"></div>
     </div>
   </aside>
 
@@ -598,7 +598,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <div class="header-badge" id="mob-badge"></div>
       <div>
         <div class="header-title" id="mob-title">Tesoreros App</div>
-        <div id="mob-version" style="font-size:9px;color:var(--muted);opacity:0.6"></div>
+        <div id="mob-version" style="font-size:10px;color:var(--muted)"></div>
         <div class="header-sub" id="mob-header-sub">— &nbsp;·&nbsp; <span id="fb-status-mob" style="font-size:10px">⏳</span></div>
       </div>
     </div>
@@ -1767,7 +1767,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.14";
+const APP_VERSION="v2.15";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
