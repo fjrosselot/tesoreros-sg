@@ -1,5 +1,20 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-14 23:55] — v2.11/v2.12: dark mode + fix paths Firebase + migración datos legacy
+
+**Resumen:** Implementación completa del toggle claro/oscuro (v2.11). Merge de v2 a main + deploy. Diagnóstico y corrección de bug crítico: `_initSession` usaba subpath `/2026/` en Firebase cuando la sesión tenía `temporada`, causando que datos (cuotas, pagos, gastos) se guardaran en path equivocado. Migración completa de datos legacy `/cursos/4B/` y subpath `/datos/sg/4B/2026/` al path correcto `/datos/sg/4B/`. Limpieza del nodo `/2026/` en Firebase.
+
+**Archivos:** `index.html`, `CLAUDE.md`
+
+**Decisiones:** `_initSession` ahora ignora `ses.temporada` — siempre usa `/datos/{colegio}/{curso}` sin subpath de año. El sistema de temporadas en Firebase fue abandonado en favor de path plano. Backup GitHub Actions ya funcionaba correctamente; el problema era que los datos iban al path equivocado.
+
+**Pendientes:**
+- [ ] El nodo legacy `/cursos/4B/` sigue existiendo en Firebase (no se borró — tiene datos históricos de v1)
+- [ ] Investigar/arreglar bug form passwords (pendiente de sesión anterior)
+- [ ] Brainstorm funcionalidades faltantes (pendiente de sesión anterior)
+
+---
+
 ## [2026-04-13 23:15] — QA review + brainstorm funcionalidades faltantes
 
 **Resumen:** Sesión de QA por revisión de código (Playwright no disponible). Se identificaron 3 bugs y un gap UX clave. Se inició brainstorm de funcionalidades faltantes, quedó pendiente continuar en próxima sesión.
