@@ -1767,7 +1767,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.15";
+const APP_VERSION="v2.16";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3153,36 +3153,41 @@ function interpretAIInput(){
   btn.disabled=true;
 
   const activeQuotas=state.quotas.filter(q=>!q.draft).map(q=>({id:q.id,name:q.name,amount:q.amount}));
-  const studentList=state.students.map(s=>({id:s.id,name:s.name}));
-  const systemPrompt='Eres un asistente para una app de gestión de pagos de un comité escolar chileno.\n'
-    +'Tu tarea es interpretar instrucciones en lenguaje natural y convertirlas en una o más acciones concretas.\n\n'
+  const studentList=state.students.filter(s=>s.activo!==false).map(s=>({id:s.id,name:s.name}));
+  const systemPrompt='Eres un asistente para una app de gestion de pagos de un comite escolar chileno.\n'
+    +'Interpreta instrucciones en lenguaje natural y conviertelas en acciones concretas de pago.\n\n'
+    +'REGLAS DE INTERPRETACION:\n'
+    +'- Puedes identificar alumnos por nombre, apellido o apodo parcial (ej: "Pascuala", "los Gonzalez", "Tomas L")\n'
+    +'- Si el usuario menciona un apellido, busca alumnos cuyo nombre contenga ese apellido\n'
+    +'- Si el usuario dice "todos" o "el curso", incluye a todos los alumnos activos\n'
+    +'- Si no se menciona monto, usa el monto por defecto de la cuota\n'
+    +'- Si no se menciona fecha, usa la fecha de hoy\n'
+    +'- Si una instruccion aplica a varios alumnos o varias cuotas, genera un objeto por cada combinacion\n\n'
     +'Cuotas activas: '+JSON.stringify(activeQuotas)+'\n'
-    +'Alumnos: '+JSON.stringify(studentList)+'\n'
+    +'Alumnos activos: '+JSON.stringify(studentList)+'\n'
     +'Fecha hoy: '+hoy()+'\n\n'
-    +'Responde SOLO con un array JSON con este formato exacto, sin texto adicional:\n'
+    +'Responde SOLO con un array JSON valido, sin texto adicional ni bloques de codigo:\n'
     +'[\n'
     +'  {\n'
-    +'    "action": "payment" | "unknown",\n'
-    +'    "studentId": "id del alumno",\n'
+    +'    "action": "payment",\n'
+    +'    "studentId": "id exacto del alumno de la lista",\n'
     +'    "studentName": "nombre completo del alumno",\n'
-    +'    "quotaId": "id de la cuota",\n'
+    +'    "quotaId": "id exacto de la cuota de la lista",\n'
     +'    "quotaName": "nombre de la cuota",\n'
     +'    "amount": numero,\n'
     +'    "date": "YYYY-MM-DD",\n'
     +'    "confidence": "alta" | "media" | "baja",\n'
-    +'    "confirmMessage": "frase en espanol resumiendo la accion a confirmar",\n'
-    +'    "errorMessage": "si no puedes interpretar, explica por que"\n'
+    +'    "confirmMessage": "frase corta en espanol resumiendo la accion"\n'
     +'  }\n'
     +']\n'
-    +'Si la instruccion menciona multiples pagos (varios alumnos o varias cuotas), incluye un objeto por cada pago.\n'
-    +'Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y explica en errorMessage.';
+    +'Si no puedes identificar el alumno o cuota, igual incluye el objeto pero con action:"unknown" y agrega campo "errorMessage" explicando por que.';
 
   fetch("https://claude-proxy-vert.vercel.app/api/proxy",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
-      model:"claude-sonnet-4-20250514",
-      max_tokens:1500,
+      model:"claude-sonnet-4-6",
+      max_tokens:2000,
       system:systemPrompt,
       messages:[{role:"user",content:text}]
     })
@@ -3192,35 +3197,55 @@ function interpretAIInput(){
     try{
       if(data.error){throw new Error(data.error.message||JSON.stringify(data.error));}
       if(!data.content||!data.content[0]){throw new Error("Respuesta vacia del servidor");}
-      const raw=data.content[0].text.replace(/```json|```/g,"").trim();
-      const parsed=JSON.parse(raw);
+      // Extraer JSON aunque el modelo agregue texto extra o bloques markdown
+      var rawText=data.content[0].text;
+      var jsonMatch=rawText.match(/\[[\s\S]*\]/);
+      if(!jsonMatch)throw new Error("No se encontro JSON en la respuesta");
+      const parsed=JSON.parse(jsonMatch[0]);
       const items=Array.isArray(parsed)?parsed:[parsed];
       window._aiParsed=items;
 
       let html='';
       let validCount=0;
+      let skippedPaid=[];
       items.forEach(function(p){
         if(p.action==="unknown"||!p.studentId||!p.quotaId){
           html+='<div class="ai-confirm" style="border-color:var(--red);margin-bottom:6px">'
             +'<div style="color:var(--red);font-weight:600">❌ No pude interpretar</div>'
             +'<div class="ai-confirm-detail">'+(p.errorMessage||"Intenta ser mas especifico.")+'</div>'
             +'</div>';
-        }else{
-          validCount++;
-          const cc=p.confidence==="alta"?"#3dd68c":p.confidence==="media"?"#f5c842":"#f16060";
-          html+='<div class="ai-confirm" style="margin-bottom:6px">'
-            +'<div class="ai-confirm-name">✓ '+p.confirmMessage+'</div>'
-            +'<div class="ai-confirm-detail">'
-            +'Alumno: '+p.studentName+'<br>'
-            +'Cuota: '+p.quotaName+'<br>'
-            +'Monto: '+fmt(p.amount)+'<br>'
-            +'Fecha: '+p.date+'<br>'
-            +'<span style="color:'+cc+'">Confianza: '+p.confidence+'</span>'
-            +'</div>'
-            +'</div>';
+          return;
         }
+        if(isPaid(p.studentId,p.quotaId)){
+          skippedPaid.push(p.studentName);
+          return;
+        }
+        validCount++;
+        const cc=p.confidence==="alta"?"var(--green)":p.confidence==="media"?"var(--yellow)":"var(--red)";
+        const q=state.quotas.find(x=>x.id===p.quotaId);
+        const partial=q?getSP(p.studentId,p.quotaId).reduce(function(x,pmt){return x+pmt.amount;},0):0;
+        const rem=q?getStudentAmount(p.studentId,q)-partial:p.amount;
+        const displayAmount=Math.min(p.amount,rem);
+        html+='<div class="ai-confirm" style="margin-bottom:6px">'
+          +'<div class="ai-confirm-name">✓ '+p.confirmMessage+'</div>'
+          +'<div class="ai-confirm-detail">'
+          +'Alumno: '+p.studentName+'<br>'
+          +'Cuota: '+p.quotaName+'<br>'
+          +'Monto: '+fmt(displayAmount)+(rem<p.amount?' <span style="color:var(--muted)">(saldo restante)</span>':'')+'<br>'
+          +'Fecha: '+p.date+'<br>'
+          +'<span style="color:'+cc+'">Confianza: '+p.confidence+'</span>'
+          +'</div>'
+          +'</div>';
       });
-      resultEl.innerHTML=html;
+
+      if(skippedPaid.length>0){
+        html+='<div class="ai-confirm" style="border-color:var(--muted);margin-bottom:6px;opacity:.7">'
+          +'<div style="color:var(--muted);font-weight:600">⚠ Ya pagado (omitido)</div>'
+          +'<div class="ai-confirm-detail">'+skippedPaid.join(', ')+'</div>'
+          +'</div>';
+      }
+
+      resultEl.innerHTML=html||'<div class="ai-confirm"><div style="color:var(--muted)">Sin resultados</div></div>';
 
       if(validCount===0){
         btn.disabled=false;
