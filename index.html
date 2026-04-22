@@ -1881,7 +1881,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.21";
+const APP_VERSION="v2.22";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2875,6 +2875,11 @@ function renderReportes(){
   state.expenses.forEach(e=>{
     if(proyectado||e.date<=today) events.push({date:e.date,type:"gasto",amount:e.amount});
   });
+  if(proyectado){
+    (state.ingresosProyectados||[]).forEach(ip=>{
+      events.push({date:ip.fechaEstimada,type:"ingreso",amount:ip.monto});
+    });
+  }
   if(!events.length) return `<div class="empty" style="padding:60px 0">📈 Sin movimientos registrados aún</div>`;
 
   events.sort((a,b)=>a.date.localeCompare(b.date));
@@ -2895,7 +2900,8 @@ function renderReportes(){
   });
 
   // Summary stats
-  const totalIngresos=state.payments.reduce((s,p)=>s+p.amount,0);
+  const totalIngProy=(state.ingresosProyectados||[]).reduce((s,ip)=>s+ip.monto,0);
+  const totalIngresos=state.payments.reduce((s,p)=>s+p.amount,0)+(proyectado?totalIngProy:0);
   const gastosReales=state.expenses.filter(e=>e.date<=today).reduce((s,e)=>s+e.amount,0);
   const gastosFuturos=state.expenses.filter(e=>e.date>today).reduce((s,e)=>s+e.amount,0);
   const totalGastos=proyectado?gastosReales+gastosFuturos:gastosReales;
