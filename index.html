@@ -1881,7 +1881,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.22";
+const APP_VERSION="v2.23";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2918,9 +2918,9 @@ function renderReportes(){
     +'</div></div>';
 
   html+=`<div class="kpi-grid" style="margin-bottom:16px">
-    <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(totalIngresos)}</div><div class="kpi-label">Total recaudado</div></div>
-    <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(totalGastos)}</div><div class="kpi-label">${proyectado?'Total gastos':'Gastos a la fecha'}</div></div>
-    <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${balance>=0?"#3dd68c":"#f16060"}">${fmt(balance)}</div><div class="kpi-label">${proyectado?'Balance proyectado':'Balance actual'}</div></div>
+    <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(totalIngresos)}</div><div class="kpi-label">${proyectado?'Ingreso total':'Recaudado'}</div></div>
+    <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(totalGastos)}</div><div class="kpi-label">${proyectado?'Gastos totales':'Gastos reales'}</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${balance>=0?"#5b82f0":"#f16060"}">${fmt(balance)}</div><div class="kpi-label">${proyectado?'Balance proyectado':'Balance'}</div></div>
     <div class="kpi-card"><div class="kpi-icon">📅</div><div class="kpi-value">${dates.length}</div><div class="kpi-label">Días con movimiento</div></div>
   </div>`
   +(!proyectado&&gastosFuturos>0?`<div style="font-size:12px;color:var(--muted);margin:-10px 0 14px;text-align:right">📆 ${fmt(gastosFuturos)} en gastos futuros no incluidos</div>`:"");
