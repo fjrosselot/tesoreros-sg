@@ -1367,8 +1367,9 @@ function renderResumen(){
 
   html+=`<div>`;
   html+=`<div class="section"><div class="sec-title">💸 Últimos gastos</div>`;
-  if(!state.expenses.length)html+=`<div class="empty">Sin gastos registrados</div>`;
-  [...state.expenses].reverse().slice(0,5).forEach(e=>{html+=`<div class="list-row"><div><div class="row-name">${e.name}</div><div class="row-sub">${fmtDateES(e.date)} · ${e.category}</div></div><div class="row-val" style="color:#f5c842">${fmt(e.amount)}</div></div>`;});
+  const expFil=mode==='fecha'?state.expenses.filter(e=>e.date<=today):state.expenses;
+  if(!expFil.length)html+=`<div class="empty">Sin gastos registrados</div>`;
+  [...expFil].reverse().slice(0,5).forEach(e=>{html+=`<div class="list-row"><div><div class="row-name">${e.name}</div><div class="row-sub">${fmtDateES(e.date)} · ${e.category}</div></div><div class="row-val" style="color:#f5c842">${fmt(e.amount)}</div></div>`;});
   if(isAdmin) html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button>`;
   html+=`</div></div>`;
 
@@ -1883,7 +1884,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.24";
+const APP_VERSION="v2.25";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
