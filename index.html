@@ -991,7 +991,7 @@ const isDesktop=()=>window.innerWidth>=768;
 function uid(){return Math.random().toString(36).slice(2,10);}
 function fmt(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
 function hoy(){return new Date().toISOString().slice(0,10);}
-function blankState(){return{students:[],quotas:[],payments:[],expenses:[],log:[],saldoInicial:0};}
+function blankState(){return{students:[],quotas:[],payments:[],expenses:[],log:[],saldoInicial:0,ingresosProyectados:[]};}
 function toArr(v){
   if(!v) return [];
   if(Array.isArray(v)) return v;
@@ -1007,7 +1007,8 @@ function mergeState(val){
     payments: toArr(val.payments),
     expenses: toArr(val.expenses),
     log:      toArr(val.log),
-    saldoInicial: val.saldoInicial||0
+    saldoInicial: val.saldoInicial||0,
+    ingresosProyectados: toArr(val.ingresosProyectados)
   };
 }
 function saveData(){
@@ -1269,7 +1270,8 @@ function renderResumen(){
     return sum+qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
   },0);
 
-  const kpiRec  = mode==='fecha' ? tot : tot+porRecaudar+(flujoDrafts?draftTotal:0);
+  const totalIngProy = (state.ingresosProyectados||[]).reduce((s,ip)=>s+ip.monto,0);
+  const kpiRec  = mode==='fecha' ? tot : tot+porRecaudar+(flujoDrafts?draftTotal:0)+totalIngProy;
   const kpiGas  = mode==='fecha' ? gasFecha : gasAll;
   const kpiBal  = si+kpiRec-kpiGas;
   const balColor = kpiBal>=0 ? '#5b82f0' : '#f16060';
@@ -1300,7 +1302,7 @@ function renderResumen(){
 
   // Detalle proyectado (solo en modo proyectado)
   if(mode==='proyectado'){
-    const balProyectado = si+tot+porRecaudar+(flujoDrafts?draftTotal:0)-gasAll;
+    const balProyectado = si+tot+porRecaudar+(flujoDrafts?draftTotal:0)+totalIngProy-gasAll;
     html += '<div class="section"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
       + '<div class="sec-title" style="margin:0">📈 Detalle proyectado</div>'
       + (draftQuotas.length?'<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer"><input type="checkbox" '+(flujoDrafts?'checked':'')+' onchange="flujoDrafts=this.checked;render()" style="accent-color:var(--navy);width:14px;height:14px"> Incluir borradores</label>':"")
@@ -1310,6 +1312,7 @@ function renderResumen(){
       + '<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">💰 Recaudado</span><span style="font-size:13px;font-weight:600;color:#3dd68c">'+fmt(tot)+'</span></div>'
       + '<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">📥 Por recaudar</span><span style="font-size:13px;font-weight:600;color:#5b82f0">'+fmt(porRecaudar)+'</span></div>'
       + (flujoDrafts&&draftTotal>0?'<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">📝 Borradores</span><span style="font-size:13px;font-weight:600;color:#f5c842">'+fmt(draftTotal)+'</span></div>':"")
+      + (totalIngProy>0?'<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">📥 Ingresos esperados</span><span style="font-size:13px;font-weight:600;color:#5b82f0">'+fmt(totalIngProy)+'</span></div>':"")
       + '<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">🧾 Gastos reales</span><span style="font-size:13px;font-weight:600;color:#f97316">'+fmt(gasFecha)+'</span></div>'
       + '<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">📆 Gastos futuros</span><span style="font-size:13px;font-weight:600;color:#f97316">'+fmt(gasAll-gasFecha)+'</span></div>'
       + '<div style="display:flex;justify-content:space-between;padding:13px 14px;background:'+(balProyectado>=0?'rgba(61,214,140,.05)':'rgba(241,96,96,.05)')+'"><span style="font-size:13px;font-weight:700">Balance proyectado</span><span style="font-size:15px;font-weight:700;color:'+(balProyectado>=0?'#3dd68c':'#f16060')+'">'+fmt(balProyectado)+'</span></div>'
@@ -1659,7 +1662,35 @@ function renderGastos(){
         <button class="icon-btn" onclick="requireAdmin(()=>deleteExpense('${e.id}'))">🗑️</button>
       </div></div>`;
   });
-  html+=`</div>`;return html;
+  html+=`</div>`;
+
+  // Ingresos proyectados
+  const ips = state.ingresosProyectados||[];
+  html += '<div class="section" style="margin-top:18px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    + '<div class="sec-title" style="margin:0">📥 Ingresos proyectados</div>'
+    + (isAdmin ? '<button onclick="openAddIngresoP()" style="padding:6px 12px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-dim);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">＋ Agregar</button>' : '')
+    + '</div>';
+  if(!ips.length){
+    html += '<div class="empty">Sin ingresos proyectados</div>';
+  } else {
+    ips.forEach(function(ip){
+      html += '<div class="card" style="display:flex;align-items:center;gap:12px;padding:13px 14px">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:14px;font-weight:500">' + ip.descripcion + '</div>'
+        + '<div class="row-sub">Estimado: ' + fmtDateES(ip.fechaEstimada) + '</div>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'
+        + '<span style="font-size:14px;font-weight:600;color:#5b82f0">' + fmt(ip.monto) + '</span>'
+        + (isAdmin ? '<button class="icon-btn" onclick="requireAdmin(()=>openEditIngresoP(\'' + ip.id + '\'))">✏️</button>' : '')
+        + (isAdmin ? '<button class="icon-btn" onclick="requireAdmin(()=>deleteIngresoP(\'' + ip.id + '\'))">🗑️</button>' : '')
+        + '</div></div>';
+    });
+    const totalIp = ips.reduce(function(s,ip){return s+ip.monto;},0);
+    html += '<div class="total-bar"><span style="color:var(--muted);font-size:13px">📥 ' + ips.length + ' ingreso' + (ips.length!==1?'s':'') + ' proyectado' + (ips.length!==1?'s':'') + '</span><span style="font-weight:700;font-size:15px;color:#5b82f0">' + fmt(totalIp) + '</span></div>';
+  }
+  html += '</div>';
+  return html;
 }
 function filterGastos(val){
   gastosSearch=val;
@@ -1675,6 +1706,62 @@ function filterGastos(val){
 }
 function selGastosCat(c){gastosSelCat=c;render();}
 function deleteExpense(id){const e=state.expenses.find(x=>x.id===id);if(!confirm("¿Eliminar \""+e.name+"\"?"))return;addLog("🗑️",`Gasto eliminado: "${e.name}" — ${fmt(e.amount)}`);state.expenses=state.expenses.filter(x=>x.id!==id);saveData();render();showToast("Gasto eliminado");}
+
+function openAddIngresoP(){
+  document.getElementById("modal-container").innerHTML='<div class="overlay" id="overlay" onclick="maybeClose(event)">'
+    +'<div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    +'<div class="sheet-header"><span class="sheet-title">📥 Nuevo ingreso proyectado</span><button class="sheet-close" onclick="closeSheet()">✕</button></div>'
+    +'<div class="sheet-body">'
+    +field("Descripción","ip-desc","ej: Camping noviembre")
+    +field("Monto","ip-monto","0","number")
+    +dateField("Fecha estimada de cobro","ip-fecha","")
+    +'</div>'
+    +'<div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button>'
+    +'<button class="btn-save" onclick="saveIngresoP(null)">Guardar</button>'
+    +'</div></div></div>';
+}
+function openEditIngresoP(id){
+  const ip=(state.ingresosProyectados||[]).find(x=>x.id===id);
+  if(!ip)return;
+  document.getElementById("modal-container").innerHTML='<div class="overlay" id="overlay" onclick="maybeClose(event)">'
+    +'<div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    +'<div class="sheet-header"><span class="sheet-title">✏️ Editar ingreso proyectado</span><button class="sheet-close" onclick="closeSheet()">✕</button></div>'
+    +'<div class="sheet-body">'
+    +field("Descripción","ip-desc","",undefined,ip.descripcion)
+    +field("Monto","ip-monto","0","number",ip.monto)
+    +dateField("Fecha estimada de cobro","ip-fecha",ip.fechaEstimada)
+    +'</div>'
+    +'<div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button>'
+    +'<button class="btn-save" onclick="saveIngresoP(\''+id+'\')">Guardar</button>'
+    +'</div></div></div>';
+}
+function saveIngresoP(id){
+  const desc=(document.getElementById("ip-desc").value||"").trim();
+  const monto=parseFloat(document.getElementById("ip-monto").value||0);
+  const fecha=(document.getElementById("ip-fecha").value||"").trim();
+  if(!desc){showToast("Ingresa una descripción","err");return;}
+  if(!monto||monto<=0){showToast("Ingresa un monto válido","err");return;}
+  if(!fecha){showToast("Ingresa una fecha estimada","err");return;}
+  if(!state.ingresosProyectados)state.ingresosProyectados=[];
+  if(id){
+    state.ingresosProyectados=state.ingresosProyectados.map(x=>x.id===id?{...x,descripcion:desc,monto,fechaEstimada:fecha}:x);
+    addLog("✏️","Ingreso proyectado editado: \""+desc+"\" — "+fmt(monto));
+    showToast("Ingreso actualizado");
+  } else {
+    const nw={id:"ip"+Date.now(),descripcion:desc,monto,fechaEstimada:fecha};
+    state.ingresosProyectados.push(nw);
+    addLog("📥","Ingreso proyectado: \""+desc+"\" — "+fmt(monto)+" (est. "+fmtDateES(fecha)+")");
+    showToast("Ingreso proyectado agregado");
+  }
+  saveData();closeSheet();render();
+}
+function deleteIngresoP(id){
+  const ip=(state.ingresosProyectados||[]).find(x=>x.id===id);
+  if(!ip||!confirm("¿Eliminar \""+ip.descripcion+"\"?"))return;
+  addLog("🗑️","Ingreso proyectado eliminado: \""+ip.descripcion+"\" — "+fmt(ip.monto));
+  state.ingresosProyectados=state.ingresosProyectados.filter(x=>x.id!==id);
+  saveData();render();showToast("Ingreso eliminado");
+}
 
 function renderAlumnos(){
   const activeCount=state.students.filter(s=>!s.paused).length;
@@ -1767,7 +1854,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.17";
+const APP_VERSION="v2.18";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
