@@ -1,4 +1,4 @@
-# Tesoreros App — Contexto del Proyecto (v2.31)
+# Tesoreros App — Contexto del Proyecto (v2.32)
 
 ## Descripción
 Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vanilla (sin frameworks), Firebase Realtime Database para persistencia, Vercel para hosting. Multi-tenant: login con colegio + curso + PIN.
@@ -101,7 +101,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - **Estado global:** `state` con `{students, quotas, payments, expenses, log, saldoInicial}`
 - **Render:** `render()` → `getContent()` → `renderResumen/Cuotas/Pagos/Gastos/Alumnos/Pendientes/Reportes/Log()`
 - **Firebase:** `window._fbSave(state)` / `window._fbStartPolling(callback)`
-- **Versión visible:** `APP_VERSION = "v2.31"`
+- **Versión visible:** `APP_VERSION = "v2.32"`
 
 ## Pestañas (TAB_META)
 `resumen` → `cuotas` → `pagos` → `gastos` → `alumnos` → `pendientes` → `reportes` → `log`
@@ -127,7 +127,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Toggle "A la fecha / Proyectado" cross-cutting — Resumen, Gastos, Reportes sincronizados via localStorage
 - Ingresos proyectados: entidad `{ id, descripcion, monto, fechaEstimada }` en pestaña Gastos, incluidos en modo Proyectado
 - Gastos futuros ocultos en modo "A la fecha" en todas las vistas
-- Apoderados: botones admin ocultos via CSS `.apoderado-mode [onclick*="requireAdmin"]`
+- Apoderados: botones admin ocultos via CSS `.apoderado-mode [onclick*="requireAdmin"]:not(.s-row)` — filas de pagos visibles
 - Sort de gastos por fecha/descripción/monto con indicador de dirección
 - Footer de cuota muestra recaudado + por recaudar (PxQ) en azul cuando hay pendientes
 - Actividades colectivas incluidas en cálculo de `porRecaudar`

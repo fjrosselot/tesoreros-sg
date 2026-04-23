@@ -1,5 +1,22 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-23] — v2.32: fix vista apoderados en Pagos
+
+**Resumen:** El CSS `.apoderado-mode [onclick*="requireAdmin"]` ocultaba las filas de alumnos en Pagos (`.s-row`) porque también son botones con requireAdmin. Fix: agregar `:not(.s-row)` al selector para excluirlas. Apoderados ahora ven quién pagó y quién no.
+
+**Archivos:** `index.html`
+
+**Decisiones:** Mantener el CSS genérico pero excluir `.s-row` explícitamente — más simple que refactorizar todos los botones admin.
+
+**Pendientes:**
+- [ ] Link apoderado generado desde la app (sin pasar por superadmin)
+- [ ] Distribución más elegante del link apoderado (QR, WhatsApp, PIN directo)
+- [ ] Exportar estado de pagos (Excel/imagen)
+- [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
+- [ ] Comprobante de pago individual
+
+---
+
 ## [2026-04-22] — v2.17→v2.31: ingresos proyectados, modo a-la-fecha cross-cutting, fixes UX
 
 **Resumen:** Sesión larga de mejoras y fixes. Se agregaron ingresos proyectados como entidad nueva (pestaña Gastos). El toggle "A la fecha / Proyectado" se extendió a Reportes y Gastos de forma cross-cutting — gastos futuros se ocultan globalmente en modo "a la fecha". Fixes de consistencia entre Resumen/Reportes (colores, labels, cálculo de porRecaudar incluyendo actividades). Fix UX: link apoderado reabre sheet al guardar, apoderados ven solo lo que corresponde, sort por fecha en gastos, PxQ visible en footer de cuotas.
