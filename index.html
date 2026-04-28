@@ -1894,7 +1894,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.36";
+const APP_VERSION="v2.37";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2532,30 +2532,41 @@ function saveEditQuota(id){
   if(!name)return;
   const isVariable=q.amounts&&Object.keys(q.amounts).length>0;
   if(isVariable){
-    const amounts={};
+    let amounts=Object.assign({},q.amounts);
+    let newWp=q._wp||null;
     const activos=state.students.filter(s=>!s.paused);
     if(window._ppSegmented){
       const pa=getMoneyVal("q-price-adulto");
-      const padol=getMoneyVal("q-price-adol");
       const pn=getMoneyVal("q-price-nino");
-      const inclAdol=document.getElementById("pp-incl-adol")?document.getElementById("pp-incl-adol").checked:false;
-      if(!pa&&!pn)return;
-      activos.forEach(function(s){
-        const a=parseInt((document.getElementById("qseg-a-"+s.id)||{}).textContent)||2;
-        const adol=inclAdol?(parseInt((document.getElementById("qseg-adol-"+s.id)||{}).textContent)||0):0;
-        const n=parseInt((document.getElementById("qseg-n-"+s.id)||{}).textContent)||1;
-        const total=a*pa+(inclAdol?adol*padol:0)+n*pn;
-        if(total>0) amounts[s.id]=total;
-      });
+      if(pa||pn){
+        const padol=getMoneyVal("q-price-adol");
+        const inclAdol=document.getElementById("pp-incl-adol")?document.getElementById("pp-incl-adol").checked:false;
+        amounts={};
+        const wpCounts={};
+        activos.forEach(function(s){
+          const a=parseInt((document.getElementById("qseg-a-"+s.id)||{}).textContent)||2;
+          const adol=inclAdol?(parseInt((document.getElementById("qseg-adol-"+s.id)||{}).textContent)||0):0;
+          const n=parseInt((document.getElementById("qseg-n-"+s.id)||{}).textContent)||1;
+          const total=a*pa+(inclAdol?adol*padol:0)+n*pn;
+          if(total>0) amounts[s.id]=total;
+          wpCounts[s.id]={a:a,adol:adol,n:n};
+        });
+        newWp={mode:"segmented",priceA:pa,priceAdol:padol,priceN:pn,inclAdol:inclAdol,counts:wpCounts};
+      }
     } else {
       const pp=getMoneyVal("q-price-pp");
-      if(!pp)return;
-      activos.forEach(function(s){
-        const persons=parseInt((document.getElementById("qpp-"+s.id)||{}).textContent)||2;
-        amounts[s.id]=pp*persons;
-      });
+      if(pp){
+        amounts={};
+        const wpCounts={};
+        activos.forEach(function(s){
+          const persons=parseInt((document.getElementById("qpp-"+s.id)||{}).textContent)||2;
+          amounts[s.id]=pp*persons;
+          wpCounts[s.id]=persons;
+        });
+        newWp={mode:"unica",pricePP:pp,counts:wpCounts};
+      }
     }
-    state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,{name,date,amounts,draft:window._isDraft}):x;});
+    state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,{name,date,amounts,draft:window._isDraft},newWp?{_wp:newWp}:{}):x;});
     addLog("✏️","Cuota editada: \""+name+"\" (montos variables)");
   } else {
     const amount=getMoneyVal("f-amount");
