@@ -1894,7 +1894,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.35";
+const APP_VERSION="v2.36";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2280,7 +2280,20 @@ function saveAddQuota(){
   }
   const hasCustom=Object.keys(amounts).length>0;
   const isDraft=document.getElementById("q-is-draft")?.value==="1"||window._isDraft||false;
-  state.quotas.push({id:uid(),name,amount,date,studentIds,amounts:hasCustom?amounts:{},draft:isDraft});
+  let _wp=null;
+  if(amtMode==="perperson"){
+    if(window._ppSegmented){
+      const inclAdol=document.getElementById("pp-incl-adol")?document.getElementById("pp-incl-adol").checked:false;
+      const wpCounts={};
+      targetStudents.forEach(function(sid){wpCounts[sid]={a:parseInt((document.getElementById("qseg-a-"+sid)||{}).textContent)||2,adol:parseInt((document.getElementById("qseg-adol-"+sid)||{}).textContent)||0,n:parseInt((document.getElementById("qseg-n-"+sid)||{}).textContent)||1};});
+      _wp={mode:"segmented",priceA:getMoneyVal("q-price-adulto"),priceAdol:getMoneyVal("q-price-adol"),priceN:getMoneyVal("q-price-nino"),inclAdol:inclAdol,counts:wpCounts};
+    } else {
+      const wpCounts={};
+      targetStudents.forEach(function(sid){wpCounts[sid]=parseInt((document.getElementById("qpp-"+sid)||{}).textContent)||2;});
+      _wp={mode:"unica",pricePP:getMoneyVal("q-price-pp"),counts:wpCounts};
+    }
+  }
+  state.quotas.push(Object.assign({id:uid(),name,amount,date,studentIds,amounts:hasCustom?amounts:{},draft:isDraft},_wp?{_wp:_wp}:{}));
   addLog(isDraft?"📝":"📋",`Cuota ${isDraft?'(borrador)':''}creada: "${name}" — ${fmt(amount)} base`);
   saveData();closeSheet();render();showToast(isDraft?"✓ Borrador guardado":"✓ Cuota creada");
 }
@@ -2495,6 +2508,22 @@ function openEditQuota(id){
   const bodyHtml=field("Nombre","f-name","","text",q.name)+dateField("Fecha","f-date",q.date)+draftToggle+ppPanel;
   document.getElementById("modal-container").innerHTML='<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">✏️ Editar cuota</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'+bodyHtml+'</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" id="eq-save-btn">Guardar</button></div></div></div>';
   document.getElementById("eq-save-btn").addEventListener("click",function(){saveEditQuota(id);});
+  // Pre-populate wizard params if stored
+  const wp=q._wp;
+  if(wp){
+    window._ppSegmented=wp.mode==="segmented";
+    qPPTarifa(window._ppSegmented);
+    if(wp.mode==="segmented"){
+      var elPA=document.getElementById("q-price-adulto");if(elPA&&wp.priceA){elPA.value=fmtNum(wp.priceA);elPA._rawValue=wp.priceA;}
+      var elPAdol=document.getElementById("q-price-adol");if(elPAdol&&wp.priceAdol){elPAdol.value=fmtNum(wp.priceAdol);elPAdol._rawValue=wp.priceAdol;}
+      var elPN=document.getElementById("q-price-nino");if(elPN&&wp.priceN){elPN.value=fmtNum(wp.priceN);elPN._rawValue=wp.priceN;}
+      var cbAdol=document.getElementById("pp-incl-adol");if(cbAdol){cbAdol.checked=!!wp.inclAdol;if(wp.inclAdol)qToggleAdol(true);}
+      if(wp.counts){Object.keys(wp.counts).forEach(function(sid){var c=wp.counts[sid];var ea=document.getElementById("qseg-a-"+sid);var eadol=document.getElementById("qseg-adol-"+sid);var en=document.getElementById("qseg-n-"+sid);if(ea)ea.textContent=c.a||2;if(eadol)eadol.textContent=c.adol||0;if(en)en.textContent=c.n||1;});qUpdateSeg();}
+    } else {
+      var elPP=document.getElementById("q-price-pp");if(elPP&&wp.pricePP){elPP.value=fmtNum(wp.pricePP);elPP._rawValue=wp.pricePP;}
+      if(wp.counts){Object.keys(wp.counts).forEach(function(sid){var el=document.getElementById("qpp-"+sid);if(el)el.textContent=wp.counts[sid]||2;});qUpdatePP();}
+    }
+  }
 }
 function saveEditQuota(id){
   const q=state.quotas.find(x=>x.id===id);
