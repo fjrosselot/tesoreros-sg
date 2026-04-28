@@ -151,29 +151,10 @@ input,select{font-family:'Roboto',sans-serif;}
   .s-row-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
   .s-row-grid .s-row{margin-bottom:0;}
 
-  /* Sheet becomes a centered dialog on desktop */
   .overlay{align-items:center;}
-  .sheet{
-    border-radius:var(--r-lg);max-width:560px;max-height:86vh;
-    border:1px solid var(--border2);
-    display:flex;flex-direction:column;overflow:hidden;
-    animation:none;
-  }
-  .sheet-body{flex:1;overflow-y:auto;}
   .sheet-handle{display:none;}
-  /* Wide modal for perperson wizard */
-  .sheet-wide{max-width:720px;}
   .pp-panel-inner{display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start;}
   .pp-panel-table{max-height:360px;overflow-y:auto;}
-}
-
-@media(min-width:1100px){
-  body.theme-dark,body.theme-light{--sidebar:240px;}
-  .mob-content{padding:32px 40px;}
-  .desk-topbar{padding:18px 40px;}
-  .sheet-wide{max-width:800px;}
-  .pp-panel-inner{grid-template-columns:240px 1fr;}
-  .pp-panel-table{max-height:420px;}
 }
 
 /* ══════════════ SHARED COMPONENTS ═══════════════════════ */
@@ -279,6 +260,23 @@ input,select{font-family:'Roboto',sans-serif;}
 .pay-total-line{color:var(--muted);font-size:12px;margin-top:10px;}
 .del-pay{background:transparent;border:none;color:var(--muted);font-size:16px;padding:0 4px;margin-left:auto;}
 .pay-done{text-align:center;color:var(--green);padding:24px 0;font-size:15px;font-weight:500;}
+
+/* ══════════════ MODAL DESKTOP OVERRIDES (must be after base sheet CSS) ═══════════════════ */
+@media(min-width:768px){
+  .sheet{
+    border-radius:var(--r-lg);max-width:560px;max-height:86vh;
+    border:1px solid var(--border2);
+    display:flex;flex-direction:column;overflow:hidden;
+    animation:none;
+  }
+  .sheet-body{flex:1;overflow-y:auto;}
+  .sheet-wide{max-width:720px;}
+}
+@media(min-width:1100px){
+  .sheet-wide{max-width:800px;}
+  .pp-panel-inner{grid-template-columns:240px 1fr;}
+  .pp-panel-table{max-height:420px;}
+}
 
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
   padding:11px 22px;border-radius:20px;font-size:13px;font-weight:500;
@@ -1906,7 +1904,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.39";
+const APP_VERSION="v2.40";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
