@@ -1906,7 +1906,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.41";
+const APP_VERSION="v2.42";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2755,14 +2755,15 @@ function openFicha(sid){
     const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
     const isPart=partial>0&&!paid;
     const dot=paid?"#3dd68c":isPart?"#f5c842":"#2e3a55";
-    const st=paid?"✓ Pagado":isPart?`Parcial ${fmt(partial)} / falta ${fmt(q.amount-partial)}`:"Pendiente";
+    const sAmt=getStudentAmount(s.id,q);
+    const st=paid?"✓ Pagado":isPart?`Parcial ${fmt(partial)} / falta ${fmt(sAmt-partial)}`:"Pendiente";
     const stColor=paid?"var(--green)":isPart?"var(--yellow)":"var(--muted)";
     quotasHtml+=`<div class="ficha-quota-row">
       <div style="display:flex;align-items:center;gap:10px">
         <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0"></div>
         <div>
           <div style="font-size:13px;font-weight:500">${q.name}</div>
-          <div style="font-size:11px;color:var(--muted)">${fmt(q.amount)}</div>
+          <div style="font-size:11px;color:var(--muted)">${quotaAmountLabel(q)}</div>
         </div>
       </div>
       <div style="font-size:12px;font-weight:600;color:${stColor}">${st}</div>
