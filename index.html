@@ -589,6 +589,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="sidebar-exit" id="desk-backup-btn" onclick="requireAdmin(downloadBackup)" style="display:none;margin-bottom:2px">💾 Respaldar datos</button>
       <button class="sidebar-exit" id="desk-restore-btn" onclick="requireAdmin(openRestore)" style="display:none;margin-bottom:4px">📤 Restaurar datos</button>
       <button class="sidebar-exit" id="desk-mycourses-btn" onclick="volverMisCursos()" style="display:none;margin-bottom:4px">📚 Mis cursos</button>
+      <button class="sidebar-exit" onclick="openApoderadoPreview()" style="margin-bottom:4px">👁 Vista apoderado</button>
       <div class="theme-toggle" onclick="applyTheme(window._currentTheme==='dark'?'light':'dark')">
         <span class="toggle-emoji">☀️ Light</span>
         <div class="toggle-track" id="theme-toggle-track"><div class="toggle-thumb"></div></div>
@@ -625,6 +626,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">Delegados</span>
       <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="openCambiarRol()">🔐</span>
       <button class="exit-btn" id="mob-mycourses-btn" onclick="volverMisCursos()" style="display:none">📚</button>
+      <button class="exit-btn" onclick="openApoderadoPreview()" title="Vista apoderado">👁</button>
       <button id="mob-theme-btn" onclick="applyTheme(window._currentTheme==='dark'?'light':'dark')">☀️</button>
       <button class="exit-btn" id="mob-exit-btn" onclick="doLogout()">Salir</button>
     </div>
@@ -2276,7 +2278,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.58";
+const APP_VERSION="v2.59";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2875,6 +2877,24 @@ function saveActividadCompromisos(id){
   addLog("🎯","Compromisos actualizados: \""+q.name+"\"");
   saveData();closeSheet();render();showToast("✓ Cambios guardados");
 }
+async function openApoderadoPreview(){
+  var cid=_SESSION && _SESSION.colegioId, curid=_SESSION && _SESSION.cursoId;
+  if(!cid||!curid){ showToast("Sin sesión activa","err"); return; }
+  var token;
+  try{
+    var r=await fetch(_FB_BASE+"/datos/"+cid+"/"+curid+"/publicToken.json");
+    token=await r.json();
+    if(!token){
+      token=uid()+uid();
+      await fetch(_FB_BASE+"/datos/"+cid+"/"+curid+"/publicToken.json",{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(token)
+      });
+    }
+  }catch(e){ showToast("Error al obtener link","err"); return; }
+  window.open(window.location.origin+"/"+cid+"/"+curid+"/"+token,"_blank");
+}
+
 async function copyInscripcionLink(qid){
   var q=state.quotas.find(function(x){return x.id===qid;});
   if(!q) return;
