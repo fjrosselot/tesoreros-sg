@@ -9,7 +9,7 @@
 <meta property="og:url" content="https://tesoreros-app.vercel.app">
 <meta property="og:title" content="Tesoreros App">
 <meta property="og:description" content="Plataforma de gestión para delegados y tesoreros de colegios. Cuotas, actividades, pagos y reportes.">
-<meta property="og:image" content="https://tesoreros-app.vercel.app/og-image.png">
+<meta property="og:image" content="https://tesoreros-app.vercel.app/api/og?colegio=sg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -863,6 +863,7 @@ let _apUuid = "";
 let _apColegioId = "";
 let _apCursoId = "";
 let _apPublicToken = "";
+let _apLogoB64 = "";
 
 // showApoderadoLogin: uuid=token, colegioId/cursoId opcionales (path-based routing)
 function showApoderadoLogin(uuid, colegioId, cursoId){
@@ -990,6 +991,11 @@ async function startApoderadoView(){
       var r = await fetch(_FB_BASE + "/datos/" + cid + "/" + curid + "/publicToken.json");
       _apPublicToken = (await r.json()) || "";
     }
+    // Fetch college logo
+    try {
+      var lr = await fetch(_FB_BASE + "/plataforma/colegios/" + cid + "/logoBase64.json");
+      _apLogoB64 = (await lr.json()) || "";
+    } catch(e2){ _apLogoB64 = ""; }
   } catch(e){ _apPublicToken = ""; }
   window._fbStartPolling(function(val){
     state = mergeState(val);
@@ -1040,9 +1046,14 @@ function renderApoderadoView(){
   var html = "";
   // Header sticky — siempre oscuro independiente del tema
   html += '<div style="position:sticky;top:0;z-index:20;background:#1a2340;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">';
+  html += '<div style="display:flex;align-items:center;gap:10px">';
+  if(_apLogoB64){
+    html += '<img src="' + _apLogoB64 + '" style="width:36px;height:36px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex-shrink:0">';
+  }
   html += '<div>';
   html += '<div style="color:#fff;font-weight:700;font-size:15px">' + cursoNombre + '</div>';
   html += '<div style="color:#94a3b8;font-size:12px">' + colegioNombre + '</div>';
+  html += '</div>';
   html += '</div>';
   html += '<div style="display:flex;align-items:center;gap:8px">';
   html += '<button onclick="applyTheme(window._currentTheme===\'dark\'?\'light\':\'dark\');renderApoderadoView()" style="background:transparent;border:none;color:#94a3b8;font-size:18px;padding:4px 6px;cursor:pointer;line-height:1">' + themeIcon + '</button>';
@@ -1458,7 +1469,7 @@ function doLogout(){
   _SESSION = null; _FB_URL = null; isAdmin = false;
   if(window._fbPollingTimer){ clearInterval(window._fbPollingTimer); window._fbPollingTimer = null; }
   state = null;
-  _mcCursos = {}; _mcAuth = {}; _apUuid = ""; _apColegioId = ""; _apCursoId = ""; _apPublicToken = "";
+  _mcCursos = {}; _mcAuth = {}; _apUuid = ""; _apColegioId = ""; _apCursoId = ""; _apPublicToken = ""; _apLogoB64 = "";
   var apoView = document.getElementById("apo-view");
   if(apoView) apoView.remove();
   document.getElementById("app").classList.add("hidden");
@@ -2287,7 +2298,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.61";
+const APP_VERSION="v2.62";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -4773,18 +4784,56 @@ async function saSaveColegio(){
 }
 function saEditColegio(cid){
   const col = _saStore['col:'+cid] || {};
+  const logoPreview = col.logoBase64
+    ? '<img src="' + col.logoBase64 + '" style="max-width:72px;max-height:72px;border-radius:8px;object-fit:contain;border:1px solid var(--border)">'
+    : '<span style="color:var(--muted);font-size:12px">Sin logo</span>';
   document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">✏️ Editar colegio</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'
     + field("Nombre","sa-col-nombre","",undefined,col.nombre||"")
     + '<div class="field"><label>Estado</label><select id="sa-col-activo" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none"><option value="1"'+(col.activo?" selected":"")+'>Activo</option><option value="0"'+(!col.activo?" selected":"")+'>Inactivo</option></select></div>'
+    + '<div class="field"><label>Logo del colegio</label>'
+    + '<div id="sa-col-logo-preview" style="margin-bottom:8px">' + logoPreview + '</div>'
+    + '<label for="sa-col-logo-input" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1.5px dashed var(--border2);border-radius:var(--r);padding:10px 16px;color:var(--muted);font-size:13px;transition:border-color .15s">📁 Seleccionar imagen</label>'
+    + '<input type="file" id="sa-col-logo-input" accept="image/*" onchange="saPreviewLogo(this)" style="display:none">'
+    + '<input type="hidden" id="sa-col-logo-b64">'
+    + '<div style="font-size:11px;color:var(--muted);margin-top:6px">PNG, JPG, SVG — se redimensiona automáticamente</div>'
+    + '</div>'
     + '</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" onclick="saUpdateColegio(\''+cid+'\')">Guardar</button></div></div></div>';
+}
+function saPreviewLogo(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var MAX = 400;
+      var w = img.width, h = img.height;
+      if(w > MAX || h > MAX){
+        if(w > h){ h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      var b64 = canvas.toDataURL('image/png');
+      document.getElementById('sa-col-logo-b64').value = b64;
+      document.getElementById('sa-col-logo-preview').innerHTML = '<img src="' + b64 + '" style="max-width:72px;max-height:72px;border-radius:8px;object-fit:contain;border:1px solid var(--border)">';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 async function saUpdateColegio(cid){
   const nombre = document.getElementById("sa-col-nombre").value.trim();
   const activo = document.getElementById("sa-col-activo").value === "1";
+  const logoB64 = document.getElementById("sa-col-logo-b64").value;
   if(!nombre){ showToast("Ingresa el nombre","err"); return; }
+  const patch = { nombre, activo };
+  if(logoB64) patch.logoBase64 = logoB64;
   const r = await fetch(_FB_BASE+"/plataforma/colegios/"+cid+".json?auth="+_SA_FB_SECRET,{
     method:"PATCH", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ nombre, activo })
+    body: JSON.stringify(patch)
   });
   if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
   closeSheet(); showToast("✓ Colegio actualizado"); openSuperAdmin();
