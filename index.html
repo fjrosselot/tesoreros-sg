@@ -2278,7 +2278,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.59";
+const APP_VERSION="v2.60";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3030,20 +3030,28 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
           +'<div style="font-size:13px;font-weight:600;color:#1a2340;width:70px;text-align:right">'+(monto>0?fmtInsc(monto):'—')+'</div>'
           +'</div>';
       }
-      var nv=window._inscNoVoy&&window._inscNoVoy.has(s.id);
-      var nvBtnSt='padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Roboto,sans-serif;border:1px solid '+(nv?'#fca5a5':'#e2e8f0')+';background:'+(nv?'#fee2e2':'#f8fafc')+';color:'+(nv?'#dc2626':'#94a3b8');
-      return '<div data-name="'+apLow+'" data-sid="'+s.id+'" style="padding:10px 20px;border-bottom:1px solid #e2e8f0">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-        +'<div style="font-size:14px;font-weight:600;color:#1a2340">'+ap+'</div>'
-        +'<button id="insc-nvbtn-'+s.id+'" onclick="inscToggleNoVoy(\''+s.id+'\')" style="'+nvBtnSt+'">'+(nv?'✗ No voy':'No voy')+'</button>'
+      // Alt A card — state managed by inscRenderCard after render
+      return '<div id="insc-card-'+s.id+'" data-name="'+apLow+'" data-sid="'+s.id+'"'
+        +' style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#fff;transition:border-color .15s,background .15s,opacity .15s;margin-bottom:0">'
+        +'<div style="display:flex;align-items:center;padding:13px 16px;gap:10px">'
+        +'<div id="insc-icon-'+s.id+'" style="display:none;flex-shrink:0"></div>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-weight:700;font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ap+'</div>'
+        +'<div id="insc-sub-'+s.id+'" style="font-size:11px;margin-top:1px"></div>'
         +'</div>'
-        +'<div id="insc-ctrl-'+s.id+'" style="'+(nv?'display:none':'display:flex;gap:16px;align-items:center')+'">'
-        +'<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:11px;color:#64748b">Adultos</div><div style="display:flex;align-items:center;gap:4px"><button onclick="inscAdjTramo(\''+s.id+'\',\'a\',-1)" style="'+btnStyleInsc+'">−</button><span id="insc-a-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+c.a+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'a\',1)" style="'+btnStyleInsc+'">+</button></div></div>'
-        +(q.inclAdol?'<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:11px;color:#64748b">Adolesc.</div><div style="display:flex;align-items:center;gap:4px"><button onclick="inscAdjTramo(\''+s.id+'\',\'adol\',-1)" style="'+btnStyleInsc+'">−</button><span id="insc-adol-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+c.adol+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'adol\',1)" style="'+btnStyleInsc+'">+</button></div></div>':'')
-        +'<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:11px;color:#64748b">Niños</div><div style="display:flex;align-items:center;gap:4px"><button onclick="inscAdjTramo(\''+s.id+'\',\'n\',-1)" style="'+btnStyleInsc+'">−</button><span id="insc-n-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+c.n+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'n\',1)" style="'+btnStyleInsc+'">+</button></div></div>'
-        +'<div style="margin-left:auto;font-size:13px;font-weight:700;color:#1a2340"><span id="insc-m-'+s.id+'">'+(monto>0?fmtInsc(monto):'—')+'</span></div>'
+        +'<div id="insc-actions-'+s.id+'" style="display:flex;gap:6px;flex-shrink:0"></div>'
         +'</div>'
-        +'<div id="insc-novoy-'+s.id+'" style="font-size:12px;color:#dc2626;padding:2px 0;'+(nv?'':'display:none')+'">Confirmó que no asistirá</div>'
+        +'<div id="insc-expand-'+s.id+'" style="display:none;border-top:1px solid #e2e8f0;padding:14px 16px 16px;background:#fafbfc">'
+        +'<div style="margin-bottom:12px">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><span style="font-weight:600;font-size:13px;color:#1e293b">Adultos</span><span style="color:#64748b;font-size:11px;margin-left:6px">'+fmtInsc(q.precioAdulto||0)+'</span></div><div style="display:flex;align-items:center;gap:10px"><button id="insc-dec-a-'+s.id+'" onclick="inscAdjTramo(\''+s.id+'\',\'a\',-1)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #e2e8f0;background:transparent;color:#e2e8f0;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif">−</button><span id="insc-a-'+s.id+'" style="font-weight:700;font-size:16px;min-width:20px;text-align:center;color:#1e293b">'+c.a+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'a\',1)" style="width:32px;height:32px;border-radius:50%;border:none;background:#2d5be3;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif">+</button></div></div>'
+        +(q.inclAdol?'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><span style="font-weight:600;font-size:13px;color:#1e293b">Adolesc.</span><span style="color:#64748b;font-size:11px;margin-left:6px">'+fmtInsc(q.precioAdolescente||0)+'</span></div><div style="display:flex;align-items:center;gap:10px"><button id="insc-dec-adol-'+s.id+'" onclick="inscAdjTramo(\''+s.id+'\',\'adol\',-1)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #e2e8f0;background:transparent;color:#e2e8f0;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif">−</button><span id="insc-adol-'+s.id+'" style="font-weight:700;font-size:16px;min-width:20px;text-align:center;color:#1e293b">'+c.adol+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'adol\',1)" style="width:32px;height:32px;border-radius:50%;border:none;background:#2d5be3;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif">+</button></div></div>':'')
+        +'<div style="display:flex;align-items:center;justify-content:space-between"><div><span style="font-weight:600;font-size:13px;color:#1e293b">Niños</span><span style="color:#64748b;font-size:11px;margin-left:6px">'+fmtInsc(q.precioNino||0)+'</span></div><div style="display:flex;align-items:center;gap:10px"><button id="insc-dec-n-'+s.id+'" onclick="inscAdjTramo(\''+s.id+'\',\'n\',-1)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #e2e8f0;background:transparent;color:#e2e8f0;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif">−</button><span id="insc-n-'+s.id+'" style="font-weight:700;font-size:16px;min-width:20px;text-align:center;color:#1e293b">'+c.n+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'n\',1)" style="width:32px;height:32px;border-radius:50%;border:none;background:#2d5be3;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif">+</button></div></div>'
+        +'</div>'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e2e8f0;padding-top:12px">'
+        +'<span style="font-size:13px;color:#64748b">Total: <span id="insc-total-'+s.id+'" style="font-weight:700;color:#94a3b8">—</span></span>'
+        +'<button id="insc-confirm-btn-'+s.id+'" onclick="inscCardConfirm(\''+s.id+'\')" style="background:#e2e8f0;color:#94a3b8;border:none;border-radius:9px;padding:9px 18px;font-weight:600;font-size:13px;cursor:default;font-family:Roboto,sans-serif">Confirmar</button>'
+        +'</div>'
+        +'</div>'
         +'</div>';
     } else if(esActividad){
       var units=compInsc[s.id]||0;
@@ -3086,6 +3094,56 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
         +'</div>';
     }
   }).join('');
+
+  // Alt A: tramos non-cerrado — full replacement with card UI + early return
+  if(esTramos&&!cerrado){
+    var meta=q.metaMinima||0;
+    var headerAltA='<div style="background:#1a2340;position:sticky;top:0;z-index:20">'
+      +'<div style="max-width:520px;margin:0 auto;padding:14px 16px">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+      +'<span style="font-size:24px">🍖</span>'
+      +'<div style="flex:1">'
+      +'<div style="color:#fff;font-weight:700;font-size:15px">'+q.name+'</div>'
+      +'<div style="color:#94b0cc;font-size:11px;margin-top:2px">'+subtitulo+(limiteTxt?' · '+limiteTxt:'')+'</div>'
+      +'</div></div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<span style="color:#94b0cc;font-size:11px"><span id="insc-prog-conf" style="color:#7dd3fc;font-weight:600">0</span> de '+students.length+' familias confirmadas</span>'
+      +(q.fechaLimiteInscripcion?'<span style="color:#94b0cc;font-size:11px">Límite: '+q.fechaLimiteInscripcion+'</span>':'')
+      +'</div>'
+      +(meta>0?'<div style="background:#2d3a5c;border-radius:4px;height:5px;overflow:hidden"><div id="insc-prog-fill" style="width:0%;height:100%;background:#4f88f8;border-radius:4px;transition:width .3s"></div></div>':'')
+      +'</div>'
+      +'<div style="background:#f1f5f9;padding:10px 16px;border-bottom:1px solid #e2e8f0">'
+      +'<div style="max-width:520px;margin:0 auto">'
+      +'<input type="text" id="insc-search" placeholder="Buscar familia…" oninput="inscSearch(this.value)" style="width:100%;box-sizing:border-box;padding:9px 14px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:13px;color:#1a2340;outline:none;font-family:Roboto,sans-serif;background:#fff">'
+      +'</div></div>'
+      +'</div>';
+
+    var footerAltA='<div style="position:sticky;bottom:0;background:#fff;border-top:1px solid #e2e8f0;padding:12px 16px;z-index:20">'
+      +'<div style="max-width:520px;margin:0 auto">'
+      +'<button id="insc-save-btn" onclick="saveInscripcion()" style="width:100%;padding:13px;border-radius:10px;background:#e2e8f0;color:#94a3b8;border:none;font-size:14px;font-weight:700;cursor:default;font-family:Roboto,sans-serif">Guardar inscripción</button>'
+      +'<div id="insc-msg" style="text-align:center;margin-top:8px;font-size:13px;color:#64748b"></div>'
+      +'</div></div>';
+
+    root.innerHTML=headerAltA
+      +'<div style="max-width:520px;margin:12px auto;padding:0 16px 100px;display:flex;flex-direction:column;gap:8px" id="insc-list">'
+      +rows
+      +'</div>'
+      +footerAltA;
+
+    // Initialize card states
+    window._inscEstados={};
+    window._inscExpanded=null;
+    students.forEach(function(s){
+      var nv=window._inscNoVoy&&window._inscNoVoy.has(s.id);
+      var comp=(window._inscComp||{})[s.id];
+      var hasComp=comp&&(typeof comp==='object'?(comp.a||0)+(comp.adol||0)+(comp.n||0)>0:comp>0);
+      window._inscEstados[s.id]=nv?'novoy':(hasComp?'confirmed':'pending');
+      inscRenderCard(s.id);
+    });
+    inscUpdateProgBar();
+    inscUpdateFooter();
+    return;
+  }
 
   var totalInscriptos=esActividad?0:window._inscStudentIds.size;
   var contadorCuota=!esActividad&&!cerrado
@@ -3177,7 +3235,126 @@ function inscAdjTramo(sid,tramo,delta){
   var monto=(c.a||0)*pa+(c.adol||0)*padol+(c.n||0)*pn;
   var mEl=document.getElementById("insc-m-"+sid);
   if(mEl)mEl.textContent=monto>0?fmtInsc(monto):'—';
+  inscUpdateExpTotal(sid);
 }
+
+function inscRenderCard(sid){
+  var estado=(window._inscEstados||{})[sid]||'pending';
+  var isExp=window._inscExpanded===sid;
+  var t=(window._inscComp||{})[sid]||{a:0,adol:0,n:0};
+  if(typeof t!=='object')t={a:t,adol:0,n:0};
+  var card=document.getElementById('insc-card-'+sid);
+  if(!card)return;
+  if(estado==='confirmed'){card.style.background='#eff4ff';card.style.borderColor='#2d5be3';card.style.borderWidth='1.5px';card.style.opacity='1';}
+  else if(estado==='novoy'){card.style.background='#fff';card.style.borderColor='#e2e8f0';card.style.borderWidth='1px';card.style.opacity='0.55';}
+  else{card.style.background='#fff';card.style.borderColor=isExp?'#2d5be3':'#e2e8f0';card.style.borderWidth=isExp?'1.5px':'1px';card.style.opacity='1';}
+  var iconEl=document.getElementById('insc-icon-'+sid);
+  if(iconEl){if(estado==='confirmed'){iconEl.style.display='';iconEl.innerHTML='<div style="width:26px;height:26px;border-radius:50%;background:#2d5be3;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0">✓</div>';}else{iconEl.style.display='none';iconEl.innerHTML='';}}
+  var subEl=document.getElementById('insc-sub-'+sid);
+  if(subEl){
+    if(estado==='confirmed'){var tot2=(t.a||0)*(window._inscPrecioA||0)+(t.adol||0)*(window._inscPrecioAdol||0)+(t.n||0)*(window._inscPrecioN||0);var pp=[];if(t.a>0)pp.push(t.a+' adulto'+(t.a>1?'s':''));if(t.adol>0)pp.push(t.adol+' adol.');if(t.n>0)pp.push(t.n+' niño'+(t.n>1?'s':''));subEl.style.color='#2d5be3';subEl.textContent=pp.join(' · ')+(tot2>0?' — '+fmtInsc(tot2):'');}
+    else if(estado==='novoy'){subEl.style.color='#94a3b8';subEl.textContent='No asiste';}
+    else{subEl.textContent='';}
+  }
+  var actEl=document.getElementById('insc-actions-'+sid);
+  if(actEl){
+    if(estado==='confirmed'){actEl.innerHTML='<button onclick="inscCardEdit(\''+sid+'\')" style="font-size:11px;color:#2d5be3;font-weight:600;background:#fff;border:1px solid #2d5be3;border-radius:8px;padding:4px 10px;cursor:pointer;font-family:Roboto,sans-serif">Editar</button>';}
+    else if(estado==='novoy'){actEl.innerHTML='<button onclick="inscCardPending(\''+sid+'\')" style="font-size:11px;color:#94a3b8;font-weight:500;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;cursor:pointer;font-family:Roboto,sans-serif">Cambiar</button>';}
+    else{var arrw=isExp?'▴':'▾';actEl.innerHTML='<button onclick="inscSetNoVoyAlt(\''+sid+'\')" style="font-size:12px;color:#94a3b8;font-weight:500;background:transparent;border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;cursor:pointer;font-family:Roboto,sans-serif">No voy</button>'+'<button onclick="inscCardToggleExpand(\''+sid+'\')" style="font-size:12px;color:#fff;font-weight:600;background:#2d5be3;border:none;border-radius:8px;padding:5px 12px;cursor:pointer;font-family:Roboto,sans-serif">Asisto '+arrw+'</button>';}
+  }
+  var expEl=document.getElementById('insc-expand-'+sid);
+  if(expEl){expEl.style.display=(isExp&&estado==='pending')?'':'none';if(isExp&&estado==='pending')inscUpdateExpTotal(sid);}
+}
+
+function inscCardToggleExpand(sid){
+  var prev=window._inscExpanded;
+  window._inscExpanded=(prev===sid)?null:sid;
+  if(prev&&prev!==sid)inscRenderCard(prev);
+  inscRenderCard(sid);
+}
+
+function inscCardEdit(sid){
+  if(!window._inscEstados)window._inscEstados={};
+  window._inscEstados[sid]='pending';
+  var prev=window._inscExpanded;window._inscExpanded=sid;
+  if(prev&&prev!==sid)inscRenderCard(prev);
+  inscRenderCard(sid);
+}
+
+function inscCardPending(sid){
+  if(!window._inscEstados)window._inscEstados={};
+  window._inscEstados[sid]='pending';
+  if(window._inscNoVoy)window._inscNoVoy.delete(sid);
+  var prev=window._inscExpanded;window._inscExpanded=sid;
+  if(prev&&prev!==sid)inscRenderCard(prev);
+  inscRenderCard(sid);
+}
+
+function inscSetNoVoyAlt(sid){
+  if(!window._inscEstados)window._inscEstados={};
+  window._inscEstados[sid]='novoy';
+  if(!window._inscNoVoy)window._inscNoVoy=new Set();
+  window._inscNoVoy.add(sid);
+  if(!window._inscComp)window._inscComp={};
+  window._inscComp[sid]={a:0,adol:0,n:0};
+  if(window._inscExpanded===sid)window._inscExpanded=null;
+  ['a','adol','n'].forEach(function(campo){var el=document.getElementById('insc-'+campo+'-'+sid);if(el)el.textContent='0';});
+  inscRenderCard(sid);
+  inscUpdateProgBar();
+  inscUpdateFooter();
+}
+
+function inscCardConfirm(sid){
+  var t=(window._inscComp||{})[sid]||{a:0,adol:0,n:0};
+  if(typeof t!=='object')t={a:t,adol:0,n:0};
+  var total=(t.a||0)+(t.adol||0)+(t.n||0);
+  if(total===0)return;
+  if(!window._inscEstados)window._inscEstados={};
+  window._inscEstados[sid]='confirmed';
+  if(window._inscNoVoy)window._inscNoVoy.delete(sid);
+  window._inscExpanded=null;
+  inscRenderCard(sid);
+  inscUpdateProgBar();
+  inscUpdateFooter();
+}
+
+function inscUpdateExpTotal(sid){
+  var t=(window._inscComp||{})[sid]||{a:0,adol:0,n:0};
+  if(typeof t!=='object')t={a:t,adol:0,n:0};
+  var total=(t.a||0)*(window._inscPrecioA||0)+(t.adol||0)*(window._inscPrecioAdol||0)+(t.n||0)*(window._inscPrecioN||0);
+  var personas=(t.a||0)+(t.adol||0)+(t.n||0);
+  var totalEl=document.getElementById('insc-total-'+sid);
+  if(totalEl){totalEl.textContent=personas>0?fmtInsc(total):'—';totalEl.style.color=personas>0?'#2d5be3':'#94a3b8';}
+  var confirmBtn=document.getElementById('insc-confirm-btn-'+sid);
+  if(confirmBtn){if(personas>0){confirmBtn.style.background='#2d5be3';confirmBtn.style.color='#fff';confirmBtn.style.cursor='pointer';}else{confirmBtn.style.background='#e2e8f0';confirmBtn.style.color='#94a3b8';confirmBtn.style.cursor='default';}}
+  ['a','adol','n'].forEach(function(campo){var dec=document.getElementById('insc-dec-'+campo+'-'+sid);if(dec){var v=(t[campo]||0);dec.style.borderColor=v>0?'#2d5be3':'#e2e8f0';dec.style.color=v>0?'#2d5be3':'#e2e8f0';}});
+}
+
+function inscUpdateFooter(){
+  var btn=document.getElementById('insc-save-btn');
+  if(!btn)return;
+  var n=Object.values(window._inscEstados||{}).filter(function(e){return e==='confirmed';}).length;
+  if(n>0){btn.textContent='Guardar inscripción ('+n+' famil'+(n===1?'ia':'ias')+')';btn.style.background='#2d5be3';btn.style.color='#fff';btn.style.cursor='pointer';}
+  else{btn.textContent='Guardar inscripción';btn.style.background='#e2e8f0';btn.style.color='#94a3b8';btn.style.cursor='default';}
+}
+
+function inscUpdateProgBar(){
+  if(!window._inscEsActividad)return;
+  var comp=window._inscComp||{};
+  var totalU=Object.values(comp).reduce(function(s,v){return s+(typeof v==='object'?(v.a||0)+(v.adol||0)+(v.n||0):(v||0));},0);
+  var meta=window._inscMetaMinima||0;
+  var pct=meta>0?Math.min(100,Math.round(totalU/meta*100)):0;
+  var gap=meta>0?Math.max(0,meta-totalU):0;
+  var labelEl=document.getElementById('insc-prog-label');
+  var gapEl=document.getElementById('insc-prog-gap');
+  var fillEl=document.getElementById('insc-prog-fill');
+  if(labelEl)labelEl.textContent=totalU+(meta>0?' / '+meta:'')+' personas comprometidas';
+  if(gapEl){gapEl.textContent=gap>0?'Faltan '+gap:'✓ Meta cubierta';gapEl.style.color=gap>0?'#d97706':'#16a34a';}
+  if(fillEl){fillEl.style.width=pct+'%';fillEl.style.background=pct>=100?'#7dd3fc':'#4f88f8';}
+  var confEl=document.getElementById('insc-prog-conf');
+  if(confEl)confEl.textContent=Object.values(window._inscEstados||{}).filter(function(e){return e==='confirmed';}).length;
+}
+
 function inscAdj(sid,delta){
   if(!window._inscComp)return;
   var cur=window._inscComp[sid]||0;
