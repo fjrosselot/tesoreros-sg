@@ -971,8 +971,14 @@ async function startApoderadoView(){
   document.getElementById("apo-view").innerHTML = '<div style="text-align:center;padding:80px 0;color:#64748b;font-size:14px">Cargando…</div>';
   try {
     var cid = _SESSION.colegioId, curid = _SESSION.cursoId;
-    var r = await fetch(_FB_BASE + "/datos/" + cid + "/" + curid + "/publicToken.json");
-    _apPublicToken = (await r.json()) || "";
+    // New-style URL: the UUID in the URL IS the publicToken — use it directly
+    if(_apColegioId && _apUuid){
+      _apPublicToken = _apUuid;
+    } else {
+      // Session restore or backward compat: fetch from Firebase
+      var r = await fetch(_FB_BASE + "/datos/" + cid + "/" + curid + "/publicToken.json");
+      _apPublicToken = (await r.json()) || "";
+    }
   } catch(e){ _apPublicToken = ""; }
   window._fbStartPolling(function(val){
     state = mergeState(val);
@@ -1106,16 +1112,13 @@ function renderApoderadoView(){
           });
         }
         var unitLabel = act.modoPrecios==="tramos" ? "personas" : (act.precioUnidad?"unidades":"familias");
+        var statsLine = familias > 0
+          ? (familias + ' famil' + (familias===1?'ia':'ias') + ' · ' + unidades + ' ' + unitLabel)
+          : 'Sin inscripciones';
         html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px">';
-        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">';
-        html += '<div style="font-weight:600;font-size:14px;color:var(--text)">' + (act.name||act.id) + '</div>';
-        html += '<span style="font-size:11px;font-weight:600;color:var(--muted);background:var(--subtle);padding:2px 7px;border-radius:10px">Cerrada</span>';
-        html += '</div>';
-        if(familias > 0){
-          html += '<div style="font-size:12px;color:var(--muted)">' + familias + ' famil' + (familias===1?'ia':'ias') + ' · ' + unidades + ' ' + unitLabel + '</div>';
-        } else {
-          html += '<div style="font-size:12px;color:var(--muted)">Sin inscripciones registradas</div>';
-        }
+        html += '<div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px">' + (act.name||act.id) + '</div>';
+        html += '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Cerrada · ' + statsLine + '</div>';
+        html += '<div style="padding:8px 14px;border-radius:6px;font-size:13px;font-family:Roboto,sans-serif;background:var(--subtle);color:var(--muted);text-align:center">Actividad finalizada</div>';
         html += '</div>';
       });
     }
@@ -2273,7 +2276,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.56";
+const APP_VERSION="v2.57";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
