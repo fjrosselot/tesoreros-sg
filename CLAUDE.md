@@ -1,4 +1,4 @@
-# Tesoreros App — Contexto del Proyecto (v2.46)
+# Tesoreros App — Contexto del Proyecto (v2.60)
 
 ## Descripción
 Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vanilla (sin frameworks), Firebase Realtime Database para persistencia, Vercel para hosting. Multi-tenant: login con colegio + curso + PIN.
@@ -73,14 +73,14 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - **5 intentos fallidos** → bloqueo 15 min en sessionStorage
 - **Roles:** `delegado` (edición completa) / `apoderado` (solo lectura)
 - **Sesión:** sessionStorage `sesionv2` = `{ _type, uid, idToken, nombre, colegioId, cursoId, rol, token, meta, colegioNombre, cursoNombre }`
-- **Superadmin PIN:** `SG2025Admin#` (hardcodeado, no mostrar en UI)
+- **Superadmin:** Firebase Auth con email (lista `_SUPERADMIN_EMAILS = ["fjrosselot@gmail.com"]`) — ya NO usa PIN
 
 ## Recuperación de PIN (EmailJS)
 - `SERVICE_ID: service_r7c237j` / `TEMPLATE_ID: template_u38q8sr` / `PUBLIC_KEY: gioDkEy7GGvLn5ghK`
 - Variables template: `{{tesorero_nombre}}`, `{{colegio}}`, `{{curso}}`, `{{pin}}`
 
 ## Panel Superadmin
-- Acceso: PIN `SG2025Admin#`
+- Acceso: Firebase Auth email+password (tab "Administrador" en login) — lista `_SUPERADMIN_EMAILS`
 - CRUD colegios/cursos, importador alumnos (texto y Excel/CSV con SheetJS)
 
 ## Backup
@@ -101,7 +101,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - **Estado global:** `state` con `{students, quotas, payments, expenses, log, saldoInicial}`
 - **Render:** `render()` → `getContent()` → `renderResumen/Cuotas/Pagos/Gastos/Alumnos/Pendientes/Reportes/Log()`
 - **Firebase:** `window._fbSave(state)` / `window._fbStartPolling(callback)`
-- **Versión visible:** `APP_VERSION = "v2.46"`
+- **Versión visible:** `APP_VERSION = "v2.60"`
 
 ## Pestañas (TAB_META)
 `resumen` → `cuotas` → `pagos` → `gastos` → `alumnos` → `pendientes` → `reportes` → `log`
@@ -138,6 +138,9 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Modales con versión desktop: `.sheet-wide` (840px), header/footer fijos, body scrollable
 - Inscripción online pública: link `?inscripcion=QID&colegio=sg&curso=4B` — sin login, escribe a Firebase, se cierra automáticamente al pasar `fechaLimiteInscripcion`
 - Formulario público: por unidades (contador por familia), por tramos (adulto/adolescente/niño por familia)
+- Formulario tramos rediseñado (Alt A): cards expandibles con estados (pendiente/expandido/confirmado), header sticky navy con barra de progreso, búsqueda integrada, footer sticky "Guardar inscripción"
+- Vista apoderado: toggle dark/light mode, tabs Abiertas/Pasadas para actividades colectivas
+- Botón "Vista apoderado" en sidebar desktop y header móvil (abre en nueva pestaña)
 
 ## Modo Lote (Pagos)
 - `loteSelected` = Set en memoria con student IDs
@@ -179,6 +182,14 @@ vercel --prod --yes
 - `renderInscripcionForm(root,q,students,...)` — renderiza formulario público
 - `inscAdjTramo(sid,tramo,delta)` — ajusta tramo en formulario público
 - `saveInscripcion()` — guarda compromisos desde formulario público
+- `inscRenderCard(sid,q,students)` — renderiza card individual con estado (Alt A)
+- `inscCardToggleExpand(sid)` — expande/colapsa card pendiente
+- `inscCardConfirm(sid)` — confirma selección y pasa a estado confirmado
+- `inscCardEdit(sid)` — vuelve a estado expandido para editar
+- `inscSetNoVoyAlt(sid)` — marca "no voy" desde estado pendiente
+- `inscUpdateExpTotal(sid)` — actualiza total en zona expandida
+- `inscUpdateFooter()` — actualiza footer con contador de confirmados
+- `inscUpdateProgBar()` — actualiza barra de progreso en header
 
 ## Features Próximas (backlog)
 - Editar actividad existente (nombre, precios, fecha límite inscripción)
