@@ -1,4 +1,4 @@
-# Tesoreros App — Contexto del Proyecto (v2.32)
+# Tesoreros App — Contexto del Proyecto (v2.46)
 
 ## Descripción
 Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vanilla (sin frameworks), Firebase Realtime Database para persistencia, Vercel para hosting. Multi-tenant: login con colegio + curso + PIN.
@@ -101,7 +101,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - **Estado global:** `state` con `{students, quotas, payments, expenses, log, saldoInicial}`
 - **Render:** `render()` → `getContent()` → `renderResumen/Cuotas/Pagos/Gastos/Alumnos/Pendientes/Reportes/Log()`
 - **Firebase:** `window._fbSave(state)` / `window._fbStartPolling(callback)`
-- **Versión visible:** `APP_VERSION = "v2.32"`
+- **Versión visible:** `APP_VERSION = "v2.46"`
 
 ## Pestañas (TAB_META)
 `resumen` → `cuotas` → `pagos` → `gastos` → `alumnos` → `pendientes` → `reportes` → `log`
@@ -112,8 +112,10 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Bloqueo 5 intentos → 15 min
 - Panel superadmin CRUD colegios/cursos
 - Importador alumnos: texto y Excel/CSV (SheetJS)
-- Cuotas: activas, borradores, wizard (igual/múltiplo/base+excepciones)
-- Actividades colectivas: meta mínima, compromisos opt-in, gap semi-automático
+- Cuotas: activas, borradores, wizard (igual/base+excepciones) — siempre obligatorias, sin inscripción online
+- Actividades colectivas: opt-in, meta mínima, gap semi-automático, link de inscripción pública
+  - Modo "por unidades": `precioUnidad`, `compromisos:{sid:N}` (Bingo, rifas)
+  - Modo "por tramos": `modoPrecios:"tramos"`, `precioAdulto/Adolescente/Nino`, `compromisos:{sid:{a,adol,n}}` (asados, eventos familiares)
 - Pagos: filtro, búsqueda CSS, modo lote
 - Pendientes: grilla desktop / cards móvil
 - Alumnos: género inferido, pausar/reactivar, filtro género
@@ -131,8 +133,11 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Sort de gastos por fecha/descripción/monto con indicador de dirección
 - Footer de cuota muestra recaudado + por recaudar (PxQ) en azul cuando hay pendientes
 - Actividades colectivas incluidas en cálculo de `porRecaudar`
-- `quotaAmountLabel(q)`: muestra precio/unidad o "Actividad colectiva" en vez de $0
+- `quotaAmountLabel(q)`: muestra precio/unidad, tramos, o "Actividad colectiva" según tipo
 - Versión visible en sidebar desktop y header móvil
+- Modales con versión desktop: `.sheet-wide` (840px), header/footer fijos, body scrollable
+- Inscripción online pública: link `?inscripcion=QID&colegio=sg&curso=4B` — sin login, escribe a Firebase, se cierra automáticamente al pasar `fechaLimiteInscripcion`
+- Formulario público: por unidades (contador por familia), por tramos (adulto/adolescente/niño por familia)
 
 ## Modo Lote (Pagos)
 - `loteSelected` = Set en memoria con student IDs
@@ -143,7 +148,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Nunca usar template literals anidados — usar concatenación con `+`
 - Para strings con comillas mixtas usar concatenación
 - Incrementar `APP_VERSION` en cada commit
-- Archivo ~3500+ líneas — usar grep para encontrar funciones
+- Archivo ~4500+ líneas — usar grep para encontrar funciones
 
 ## Datepicker Custom
 - `dateField(label,id,value)` → `calToggle(id)` → `calRender(id)` → `calNav(id,delta)` → `calSelect(id,dateStr)`
@@ -162,7 +167,21 @@ vercel --prod --yes
 - IA limitada por cuota Gemini free tier
 - Las reglas de Firebase no validan el token (requeriría Firebase Auth real)
 
+## Funciones clave de actividades colectivas
+- `openActividadPanel(id)` — modal admin: edita compromisos (por unidades: +/- por familia; por tramos: +/- por adulto/adolescente/niño)
+- `actAdjUnit(actId,sid,delta)` — ajusta unidades (modo unidades)
+- `actAdjTramo(actId,sid,tramo,delta)` — ajusta tramo a/adol/n (modo tramos)
+- `actUpdateHeader()` — recalcula header del panel (total personas/unidades, monto, barra meta)
+- `saveActividadCompromisos(id)` — guarda compromisos al Firebase
+- `cerrarActividad(id)` — cierra actividad, ofrece registrar gap como gasto
+- `copyInscripcionLink(qid)` — copia URL pública al portapapeles
+- `initInscripcionPublica(qid,colegioId,cursoId)` — entry point vista pública
+- `renderInscripcionForm(root,q,students,...)` — renderiza formulario público
+- `inscAdjTramo(sid,tramo,delta)` — ajusta tramo en formulario público
+- `saveInscripcion()` — guarda compromisos desde formulario público
+
 ## Features Próximas (backlog)
+- Editar actividad existente (nombre, precios, fecha límite inscripción)
 - Link apoderado generado desde la app por el tesorero (sin pasar por superadmin)
 - Distribución más elegante del link apoderado (QR, WhatsApp, PIN directo)
 - Exportar estado de pagos (Excel/imagen compartible)

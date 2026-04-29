@@ -1,5 +1,26 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-29] — v2.42→v2.46: modal edición variable, inscripción online, refactor cuotas/actividades
+
+**Resumen:** Sesión larga. Fix modal edición cuotas variables (muestra wizard completo con parámetros precargados). Modales con versión desktop (max-width, fixed header/footer, scroll body). Fix Bingo $0 en ficha alumno y --subtle invisible en light mode. Feature inscripción online: link compartible para actividades, la gente se auto-inscribe vía URL pública hasta fecha límite. Refactor conceptual: cuotas siempre obligatorias (igual/excepciones), actividades siempre opcionales — modo "por tramos de familia" (adulto/adolescente/niño) migrado de cuotas a actividades.
+
+**Archivos:** `index.html`
+
+**Decisiones:**
+- Cuotas = obligatorias, sin link de inscripción. Actividades = opcionales, siempre con link disponible.
+- Modo "por tramos" en actividades: `modoPrecios:"tramos"`, `compromisos:{sid:{a,adol,n}}`, precios separados por tramo. Actividades "por unidades" siguen con `compromisos:{sid:N}`.
+- Cuotas perperson existentes en Firebase siguen funcionando via `amounts[sid]` — compatibilidad backwards preservada sin migración.
+- Link inscripción pública: `?inscripcion=QID&colegio=sg&curso=4B` — no requiere login, escribe directo a Firebase. Cierra automáticamente al pasar `fechaLimiteInscripcion`.
+
+**Pendientes:**
+- [ ] Editar actividad existente (fecha, precio, fecha límite)
+- [ ] Link apoderado generado desde la app (sin pasar por superadmin)
+- [ ] Exportar estado de pagos (Excel/imagen)
+- [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
+- [ ] Comprobante de pago individual
+
+---
+
 ## [2026-04-23] — v2.32: fix vista apoderados en Pagos
 
 **Resumen:** El CSS `.apoderado-mode [onclick*="requireAdmin"]` ocultaba las filas de alumnos en Pagos (`.s-row`) porque también son botones con requireAdmin. Fix: agregar `:not(.s-row)` al selector para excluirlas. Apoderados ahora ven quién pagó y quién no.
