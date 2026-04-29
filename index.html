@@ -978,6 +978,13 @@ document.addEventListener("DOMContentLoaded", function(){
     if(uuid){ showApoderadoLogin(uuid); return; }
   }
 
+  // Inscripción pública a actividad colectiva
+  var qp = new URLSearchParams(window.location.search);
+  if(qp.get("inscripcion")){
+    initInscripcionPublica(qp.get("inscripcion"),qp.get("colegio"),qp.get("curso"));
+    return;
+  }
+
   // Restaurar sesión guardada
   var saved = sessionStorage.getItem("sesionv2");
   if(saved){
@@ -1461,6 +1468,7 @@ function renderCuotas(){
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:6px">'
         +estadoBadge
+        +(q.estado!=="cerrada"&&q.fechaLimiteInscripcion?'<button class="icon-btn" onclick="copyInscripcionLink(\''+q.id+'\')" title="Copiar link de inscripción">🔗</button>':'')
         +(isAdmin?'<button class="icon-btn" onclick="requireAdmin(function(){openActividadPanel(\''+q.id+'\')})">⚙️</button>':'')
         +'<button class="icon-btn" onclick="openActividadPanel(\''+q.id+'\')" title="Ver">👁</button>'
         +(isAdmin?'<button class="icon-btn" onclick="requireAdmin(function(){deleteQuota(\''+q.id+'\')})">🗑️</button>':'')
@@ -1906,7 +1914,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.43";
+const APP_VERSION="v2.44";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2084,7 +2092,8 @@ function openAddQuota(){
     + field("Nombre","act-name","ej: Bingo Solidario")
     + moneyInput("Precio por unidad ($)","act-precio","ej: 10.000")
     + '<div class="field"><label>Meta mínima (unidades)</label><input id="act-meta" type="number" min="1" placeholder="ej: 15" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"></div>'
-    + dateField("Fecha","act-date",hoy())
+    + dateField("Fecha del evento","act-date",hoy())
+    + dateField("Inscripciones abiertas hasta","act-fecha-limite",hoy())
     + '</div>';
 
   var qBodyHtml = typeSelector
@@ -2314,6 +2323,7 @@ function saveAddActividad(){
   var precioUnidad=getMoneyVal("act-precio");
   var metaMinima=parseInt(document.getElementById("act-meta").value)||0;
   var date=document.getElementById("act-date").value;
+  var fechaLimite=document.getElementById("act-fecha-limite").value;
   if(!name||!precioUnidad||!metaMinima){showToast("Completa todos los campos","err");return;}
   state.quotas.push({
     id:uid(),
@@ -2325,6 +2335,7 @@ function saveAddActividad(){
     compromisos:{},
     gastoId:null,
     date:date,
+    fechaLimiteInscripcion:fechaLimite||null,
     amount:0,
     studentIds:[],
     amounts:{},
@@ -2442,6 +2453,176 @@ function saveActividadCompromisos(id){
   addLog("🎯","Compromisos actualizados: \""+q.name+"\"");
   saveData();closeSheet();render();showToast("✓ Cambios guardados");
 }
+function copyInscripcionLink(qid){
+  var q=state.quotas.find(function(x){return x.id===qid;});
+  if(!q)return;
+  var base=window.location.origin+window.location.pathname;
+  var link=base+"?inscripcion="+qid+"&colegio="+_SESSION.colegioId+"&curso="+_SESSION.cursoId;
+  navigator.clipboard.writeText(link).then(function(){
+    showToast("✓ Link copiado al portapapeles");
+  }).catch(function(){
+    prompt("Copia este link:",link);
+  });
+}
+
+function initInscripcionPublica(qid,colegioId,cursoId){
+  if(!qid||!colegioId||!cursoId){
+    document.body.innerHTML='<div style="font-family:Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9"><div style="text-align:center;color:#64748b"><div style="font-size:40px;margin-bottom:12px">⚠️</div><div>Link inválido</div></div></div>';
+    return;
+  }
+  var fbBase="https://bsg-7772d-default-rtdb.firebaseio.com";
+  var fbUrl=fbBase+"/datos/"+colegioId+"/"+cursoId+".json";
+  document.getElementById("login").style.display="none";
+  var root=document.createElement("div");
+  root.id="insc-root";
+  root.style.cssText="font-family:Roboto,sans-serif;min-height:100vh;background:var(--bg);color:var(--text)";
+  document.body.appendChild(root);
+  root.innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:100vh"><div style="color:var(--muted);font-size:14px">Cargando…</div></div>';
+
+  fetch(fbUrl).then(function(r){return r.json();}).then(function(data){
+    var students=[];
+    var quotas=[];
+    if(data){
+      if(data.students){students=Object.values(data.students).filter(function(s){return!s.paused;});}
+      else if(Array.isArray(data.students))students=data.students.filter(function(s){return!s.paused;});
+      if(data.quotas){quotas=Array.isArray(data.quotas)?data.quotas:Object.values(data.quotas);}
+    }
+    var q=quotas.find(function(x){return x.id===qid;});
+    if(!q||q.tipo!=="actividad"){
+      root.innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:100vh"><div style="text-align:center;color:#64748b"><div style="font-size:40px;margin-bottom:12px">🔍</div><div>Actividad no encontrada</div></div></div>';
+      return;
+    }
+    // Verificar fecha límite
+    var ahora=new Date().toISOString().slice(0,10);
+    var cerrado=q.estado==="cerrada"||(q.fechaLimiteInscripcion&&ahora>q.fechaLimiteInscripcion);
+    renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado);
+  }).catch(function(){
+    root.innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:100vh"><div style="text-align:center;color:#64748b"><div style="font-size:40px;margin-bottom:12px">⚠️</div><div>Error al cargar los datos</div></div></div>';
+  });
+}
+
+function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
+  var comp=q.compromisos||{};
+  // working copy
+  window._inscComp=JSON.parse(JSON.stringify(comp));
+  window._inscFbUrl=fbUrl;
+  window._inscQid=q.id;
+  window._inscQuotas=null; // se cargará al guardar
+
+  var limiteTxt=q.fechaLimiteInscripcion
+    ? '<span style="color:'+(cerrado?"#dc2626":"#16a34a")+'">'+( cerrado?"Inscripciones cerradas":"Abierto hasta "+q.fechaLimiteInscripcion)+'</span>'
+    : '';
+
+  var header='<div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:16px 20px;position:sticky;top:0;z-index:10">'
+    +'<div style="max-width:520px;margin:0 auto;display:flex;align-items:center;gap:12px">'
+    +'<div style="font-size:28px">🎯</div>'
+    +'<div><div style="font-weight:700;font-size:17px;color:#1a2340">'+q.name+'</div>'
+    +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+fmtInsc(q.precioUnidad)+' por unidad · '+q.date+(limiteTxt?' · '+limiteTxt:'')+'</div>'
+    +'</div></div></div>';
+
+  var totalU=Object.values(comp).reduce(function(s,v){return s+v;},0);
+  var pct=q.metaMinima>0?Math.min(100,Math.round(totalU/q.metaMinima*100)):0;
+  var gap=Math.max(0,q.metaMinima-totalU);
+  var progBar='<div style="max-width:520px;margin:0 auto;padding:16px 20px 0">'
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:6px">'
+    +'<span id="insc-prog-label">'+totalU+' / '+q.metaMinima+' unidades comprometidas</span>'
+    +'<span id="insc-prog-gap" style="color:'+(gap>0?"#d97706":"#16a34a")+'">'+( gap>0?"Faltan "+gap:"✓ Meta cubierta")+'</span>'
+    +'</div>'
+    +'<div style="background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden;margin-bottom:16px">'
+    +'<div id="insc-prog-fill" style="width:'+pct+'%;height:100%;background:'+(pct>=100?"#16a34a":"#2d5be3")+';border-radius:4px;transition:width .3s"></div>'
+    +'</div></div>';
+
+  var rows=students.map(function(s){
+    var ap=s.name.split(",")[0]||s.name;
+    var units=comp[s.id]||0;
+    var monto=units*(q.precioUnidad||0);
+    if(cerrado){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0;max-width:520px;margin:0 auto">'
+        +'<div style="flex:1;font-size:14px;color:#1a2340">'+ap+'</div>'
+        +'<div style="font-size:13px;font-weight:600;color:#1a2340">'+units+' unidad'+(units!==1?'es':'')+'</div>'
+        +'<div style="font-size:12px;color:#64748b;width:70px;text-align:right">'+(monto>0?fmtInsc(monto):'—')+'</div>'
+        +'</div>';
+    }
+    return '<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0;max-width:520px;margin:0 auto">'
+      +'<div style="flex:1;font-size:14px;color:#1a2340">'+ap+'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<button onclick="inscAdj(\''+s.id+'\',-1)" style="width:32px;height:32px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#1a2340;font-size:18px;cursor:pointer;font-family:Roboto,sans-serif">−</button>'
+      +'<span id="insc-u-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+units+'</span>'
+      +'<button onclick="inscAdj(\''+s.id+'\',1)" style="width:32px;height:32px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#1a2340;font-size:18px;cursor:pointer;font-family:Roboto,sans-serif">+</button>'
+      +'</div>'
+      +'<div id="insc-m-'+s.id+'" style="font-size:12px;color:#64748b;width:70px;text-align:right">'+(monto>0?fmtInsc(monto):'—')+'</div>'
+      +'</div>';
+  }).join('');
+
+  var footer=cerrado
+    ?'<div style="text-align:center;padding:24px;color:#64748b;font-size:13px">Las inscripciones están cerradas.</div>'
+    :'<div style="max-width:520px;margin:0 auto;padding:20px">'
+    +'<button id="insc-save-btn" onclick="saveInscripcion()" style="width:100%;padding:14px;border-radius:10px;background:#2d5be3;color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">Confirmar inscripción</button>'
+    +'<div id="insc-msg" style="text-align:center;margin-top:10px;font-size:13px;color:#64748b"></div>'
+    +'</div>';
+
+  window._inscPrecioUnidad=q.precioUnidad||0;
+  window._inscMetaMinima=q.metaMinima||0;
+
+  root.innerHTML=header+progBar
+    +'<div style="background:#fff;max-width:520px;margin:16px auto;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden">'
+    +'<div style="padding:12px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc"><span style="font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px">Familias</span></div>'
+    +rows
+    +'</div>'
+    +footer;
+}
+
+function fmtInsc(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
+
+function inscAdj(sid,delta){
+  if(!window._inscComp)return;
+  var cur=window._inscComp[sid]||0;
+  var next=Math.max(0,cur+delta);
+  window._inscComp[sid]=next;
+  var uEl=document.getElementById("insc-u-"+sid);
+  var mEl=document.getElementById("insc-m-"+sid);
+  if(uEl)uEl.textContent=next;
+  if(mEl)mEl.textContent=next>0?fmtInsc(next*window._inscPrecioUnidad):"—";
+  // Actualizar barra
+  var totalU=Object.values(window._inscComp).reduce(function(s,v){return s+v;},0);
+  var pct=window._inscMetaMinima>0?Math.min(100,Math.round(totalU/window._inscMetaMinima*100)):0;
+  var gap=Math.max(0,window._inscMetaMinima-totalU);
+  var fill=document.getElementById("insc-prog-fill");
+  var label=document.getElementById("insc-prog-label");
+  var gapEl=document.getElementById("insc-prog-gap");
+  if(fill){fill.style.width=pct+"%";fill.style.background=pct>=100?"#16a34a":"#2d5be3";}
+  if(label)label.textContent=totalU+" / "+window._inscMetaMinima+" unidades comprometidas";
+  if(gapEl){gapEl.textContent=gap>0?"Faltan "+gap:"✓ Meta cubierta";gapEl.style.color=gap>0?"#d97706":"#16a34a";}
+}
+
+function saveInscripcion(){
+  var btn=document.getElementById("insc-save-btn");
+  var msg=document.getElementById("insc-msg");
+  if(btn)btn.disabled=true;
+  if(msg)msg.textContent="Guardando…";
+
+  // Leer estado actual de Firebase, actualizar solo compromisos de esta actividad
+  fetch(window._inscFbUrl).then(function(r){return r.json();}).then(function(data){
+    var quotas=[];
+    if(data&&data.quotas){quotas=Array.isArray(data.quotas)?data.quotas:Object.values(data.quotas);}
+    var newComp={};
+    Object.keys(window._inscComp||{}).forEach(function(sid){
+      if(window._inscComp[sid]>0)newComp[sid]=window._inscComp[sid];
+    });
+    var updated=quotas.map(function(x){
+      return x.id===window._inscQid?Object.assign({},x,{compromisos:newComp}):x;
+    });
+    return fetch(window._inscFbUrl,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({quotas:updated})});
+  }).then(function(r){
+    if(!r.ok)throw new Error("err");
+    if(msg){msg.textContent="✓ Inscripción guardada. ¡Gracias!";msg.style.color="#16a34a";}
+    if(btn)btn.textContent="✓ Confirmado";
+  }).catch(function(){
+    if(msg){msg.textContent="Error al guardar. Intenta de nuevo.";msg.style.color="#dc2626";}
+    if(btn){btn.disabled=false;btn.textContent="Reintentar";}
+  });
+}
+
 function cerrarActividad(id){
   var q=state.quotas.find(function(x){return x.id===id;});
   if(!q)return;
