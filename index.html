@@ -1992,7 +1992,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.48";
+const APP_VERSION="v2.49";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2709,18 +2709,19 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
   var btnStyleInsc='width:32px;height:32px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#1a2340;font-size:18px;cursor:pointer;font-family:Roboto,sans-serif';
   var rows=students.map(function(s){
     var ap=s.name.split(",")[0]||s.name;
+    var apLow=ap.toLowerCase();
     if(esTramos){
       var c=compInsc[s.id]||{a:0,adol:0,n:0};
       if(typeof c==="number")c={a:c,adol:0,n:0};
       var monto=(c.a||0)*(q.precioAdulto||0)+(c.adol||0)*(q.precioAdolescente||0)+(c.n||0)*(q.precioNino||0);
       if(cerrado){
-        return '<div style="display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
+        return '<div data-name="'+apLow+'" style="display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
           +'<div style="flex:1;font-size:14px;color:#1a2340">'+ap+'</div>'
           +'<div style="font-size:12px;color:#64748b">A:'+c.a+(q.inclAdol?' Ad:'+c.adol:'')+' N:'+c.n+'</div>'
           +'<div style="font-size:13px;font-weight:600;color:#1a2340;width:70px;text-align:right">'+(monto>0?fmtInsc(monto):'—')+'</div>'
           +'</div>';
       }
-      return '<div style="padding:10px 20px;border-bottom:1px solid #e2e8f0">'
+      return '<div data-name="'+apLow+'" style="padding:10px 20px;border-bottom:1px solid #e2e8f0">'
         +'<div style="font-size:14px;font-weight:600;color:#1a2340;margin-bottom:8px">'+ap+'</div>'
         +'<div style="display:flex;gap:16px;align-items:center">'
         +'<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:11px;color:#64748b">Adultos</div><div style="display:flex;align-items:center;gap:4px"><button onclick="inscAdjTramo(\''+s.id+'\',\'a\',-1)" style="'+btnStyleInsc+'">−</button><span id="insc-a-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+c.a+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'a\',1)" style="'+btnStyleInsc+'">+</button></div></div>'
@@ -2732,13 +2733,13 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
       var units=compInsc[s.id]||0;
       var monto2=units*(q.precioUnidad||0);
       if(cerrado){
-        return '<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
+        return '<div data-name="'+apLow+'" style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
           +'<div style="flex:1;font-size:14px;color:#1a2340">'+ap+'</div>'
           +'<div style="font-size:13px;font-weight:600;color:#1a2340">'+units+' unidad'+(units!==1?'es':'')+'</div>'
           +'<div style="font-size:12px;color:#64748b;width:70px;text-align:right">'+(monto2>0?fmtInsc(monto2):'—')+'</div>'
           +'</div>';
       }
-      return '<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
+      return '<div data-name="'+apLow+'" style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
         +'<div style="flex:1;font-size:14px;color:#1a2340">'+ap+'</div>'
         +'<div style="display:flex;align-items:center;gap:6px">'
         +'<button onclick="inscAdj(\''+s.id+'\',-1)" style="'+btnStyleInsc+'">−</button>'
@@ -2750,13 +2751,13 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
     } else {
       var inscrito=window._inscStudentIds.has(s.id);
       if(cerrado){
-        return '<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
+        return '<div data-name="'+apLow+'" style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
           +'<div style="flex:1;font-size:14px;color:#1a2340">'+ap+'</div>'
           +'<div style="font-size:13px;font-weight:600;color:'+(inscrito?"#16a34a":"#94a3b8")+'">'+( inscrito?"✓ Inscrito":"—")+'</div>'
           +'</div>';
       }
       var btnBase='width:72px;height:36px;border-radius:8px;border:1px solid;font-size:13px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif;transition:all .15s';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
+      return '<div data-name="'+apLow+'" style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
         +'<div style="flex:1;font-size:14px;color:#1a2340">'+ap+'</div>'
         +'<div style="display:flex;gap:6px">'
         +'<button id="insc-si-'+s.id+'" onclick="inscToggle(\''+s.id+'\',true)" style="'+btnBase+';background:'+(inscrito?"#16a34a":"#f8fafc")+';color:'+(inscrito?"#fff":"#64748b")+';border-color:'+(inscrito?"#16a34a":"#cbd5e1")+'">Sí</button>'
@@ -2778,15 +2779,27 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
     +'<div id="insc-msg" style="text-align:center;margin-top:10px;font-size:13px;color:#64748b"></div>'
     +'</div>';
 
-  root.innerHTML=header+progBar+contadorCuota
-    +'<div style="background:#fff;max-width:520px;margin:16px auto;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden">'
-    +'<div style="padding:12px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc"><span style="font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px">Alumnos</span></div>'
+  var searchBar='<div style="max-width:520px;margin:0 auto 0;padding:12px 20px 0">'
+    +'<input type="text" id="insc-search" placeholder="Buscar apellido…" oninput="inscSearch(this.value)"'
+    +' style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:8px;border:1.5px solid #cbd5e1;font-size:14px;color:#1a2340;outline:none;font-family:Roboto,sans-serif;background:#fff">'
+    +'</div>';
+
+  root.innerHTML=header+progBar+contadorCuota+searchBar
+    +'<div style="background:#fff;max-width:520px;margin:12px auto;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden" id="insc-list">'
     +rows
     +'</div>'
     +footer;
 }
 
 function fmtInsc(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
+
+function inscSearch(term){
+  var t=(term||"").toLowerCase().trim();
+  var rows=document.querySelectorAll("#insc-list [data-name]");
+  rows.forEach(function(row){
+    row.style.display=(!t||row.dataset.name.indexOf(t)>=0)?"":"none";
+  });
+}
 
 function inscAdjTramo(sid,tramo,delta){
   if(!window._inscComp)return;
