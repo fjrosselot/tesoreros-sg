@@ -2371,7 +2371,7 @@ function rtNormal(){
   var inList=false;
   var c=n;
   while(c&&c!==document){ if(c.nodeName==='LI'||c.nodeName==='UL'||c.nodeName==='OL'){inList=true;break;} c=c.parentNode; }
-  if(inList) document.execCommand('insertUnorderedList');
+  if(inList) document.execCommand('outdent');
 }
 function rtKeyDown(e){
   if(e.key!=='Enter') return;
@@ -2380,7 +2380,7 @@ function rtKeyDown(e){
   var n=sel.getRangeAt(0).startContainer;
   var li=n;
   while(li&&li.nodeName!=='LI') li=li.parentNode;
-  if(li&&(li.textContent||'').trim()===''){e.preventDefault();document.execCommand('insertUnorderedList');}
+  if(li&&(li.textContent||'').trim()===''){e.preventDefault();document.execCommand('outdent');}
 }
 function readRichNote(id){
   var el=document.getElementById(id);
@@ -2389,7 +2389,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.66";
+const APP_VERSION="v2.67";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
