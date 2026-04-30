@@ -2138,7 +2138,7 @@ function renderCuotasDetailPanel(item){
   }
   html+='</div>';
   // Footer actions
-  html+='<div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">';
+  html+='<div style="padding:12px 88px 12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">';
   if(isAdmin){
     if(isCuota){
       html+='<button class="primary-btn" style="flex:1;cursor:pointer" onclick="requireAdmin(function(){saveDpanelCuota(\''+item.id+'\')})">Guardar cambios</button>';
@@ -2687,7 +2687,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.81";
+const APP_VERSION="v2.82";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
