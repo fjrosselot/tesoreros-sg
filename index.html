@@ -1175,6 +1175,33 @@ function renderApoderadoView(){
     html += '</div>';
   }
 
+  // Gastos reales (solo a la fecha, sin proyectados)
+  var gastosReales = state.expenses.filter(function(e){ return e.date <= today; })
+    .sort(function(a,b){ return b.date.localeCompare(a.date); });
+  if(gastosReales.length > 0){
+    var totalGastosReal = gastosReales.reduce(function(s,e){ return s + (e.amount||0); }, 0);
+    html += '<div style="margin-bottom:16px">';
+    html += '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Gastos (' + gastosReales.length + ')</div>';
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+    gastosReales.forEach(function(e, idx){
+      var borderTop = idx > 0 ? 'border-top:1px solid var(--border);' : '';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:11px 14px;' + borderTop + '">';
+      html += '<div style="flex:1;min-width:0;margin-right:12px">';
+      html += '<div style="font-size:13px;font-weight:500;color:var(--text)">' + e.name + '</div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:1px">' + fmtDateES(e.date) + (e.category && e.category !== 'General' ? ' · ' + e.category : '') + '</div>';
+      if(e.note) html += '<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">' + e.note + '</div>';
+      html += '</div>';
+      html += '<div style="font-size:13px;font-weight:600;color:var(--red);white-space:nowrap">−' + fmt(e.amount) + '</div>';
+      html += '</div>';
+    });
+    html += '<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--subtle);border-top:1px solid var(--border)">';
+    html += '<span style="font-size:12px;color:var(--muted);font-weight:500">Total</span>';
+    html += '<span style="font-size:13px;font-weight:700;color:var(--red)">−' + fmt(totalGastosReal) + '</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+  }
+
   // Morosidad
   html += '<div style="margin-bottom:16px">';
   html += '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Morosidad (' + morosos.length + ')</div>';
@@ -2297,8 +2324,9 @@ function openSheet(titleStr,bodyHtml,onSave){
 function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
+function textareaField(label,id,placeholder,value){return '<div class="field"><label>'+label+'</label><textarea id="'+id+'" placeholder="'+(placeholder||'')+'" rows="3" style="width:100%;box-sizing:border-box;padding:11px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;font-family:Roboto,sans-serif;outline:none;resize:vertical;line-height:1.5">'+(value?value.replace(/</g,'&lt;').replace(/>/g,'&gt;'):'')+'</textarea></div>';}
 
-const APP_VERSION="v2.62";
+const APP_VERSION="v2.63";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3679,9 +3707,9 @@ function saveEditQuota(id){
   }
   saveData();closeSheet();render();showToast("✓ Cuota actualizada");
 }
-function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+field("Nota (opcional)","f-note","Detalle...",e.note||""),"saveEditExpense('"+id+"')");}
+function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+textareaField("Nota (opcional)","f-note","Detalle adicional...",e.note||""),"saveEditExpense('"+id+"')");}
 function saveEditExpense(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses=state.expenses.map(e=>e.id===id?{...e,name,amount,category,date,note}:e);addLog("✏️","Gasto editado: \""+name+"\" — "+fmt(amount)+" ("+category+")");saveData();closeSheet();render();showToast("✓ Gasto actualizado");}
-function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
+function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+textareaField("Nota (opcional)","f-note","Detalle adicional..."),"saveAddExpense()");}
 function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});addLog("🧾",`Gasto registrado: "${name}" — ${fmt(amount)} (${category})`);saveData();closeSheet();render();showToast("✓ Gasto registrado");}
 function openAddStudent(){openSheet("👤 Agregar alumno",field("Nombre (Apellido, Nombre)","f-name","ej: Soto Pérez, Florencia"),"saveAddStudent()");}
 function saveAddStudent(){const name=document.getElementById("f-name").value.trim();if(!name)return;state.students.push({id:uid(),name});saveData();closeSheet();render();showToast("✓ Alumno agregado");}
