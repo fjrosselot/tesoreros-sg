@@ -2357,7 +2357,8 @@ function richTextField(label,id,placeholder,value){
     +'<button '+b+'underline\')" title="Subrayado"><u>U</u></button>'
     +'<div class="rt-sep"></div>'
     +'<button '+b+'insertUnorderedList\')" title="Lista con viñetas">≡</button>'
-    +'<button class="rt-btn" type="button" onmousedown="event.preventDefault();rtNormal()" title="Texto normal (salir de lista)">¶</button>'
+    +'<button '+b+'outdent\')" title="Quitar sangría">⇤</button>'
+    +'<button '+b+'indent\')" title="Agregar sangría">⇥</button>'
     +'</div>'
     +'<div id="'+id+'" class="rt-area" contenteditable="true" onkeydown="rtKeyDown(event)" data-placeholder="'+(placeholder||'')+'">'+( value||'')+'</div>'
     +'</div>'
@@ -2389,7 +2390,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.67";
+const APP_VERSION="v2.68";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
