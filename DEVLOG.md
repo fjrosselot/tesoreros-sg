@@ -1,5 +1,27 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-30] — v2.84→v2.87: panel cuotas desktop + panel actividades tramos rediseñados
+
+**Resumen:** Registro del mockup Alt E en el hub (data.ts + router.tsx). Panel de detalle de cuota rediseñado para coincidir exactamente con Alt E: fondo blanco, label "EDITAR", campos a la izquierda (max-width 560px). Panel de actividades por tramos: reemplazada tabla con emojis desalineados por cards con botones +/− circulares (mismo estilo apoderado). Se agregó buscador de familia y toggle colapsar/expandir por card.
+
+**Archivos:** `index.html`, `backbone-mockups/src/hub/data.ts`, `backbone-mockups/src/router.tsx`
+
+**Decisiones:**
+- Form area con fondo `var(--surface)` (blanco) en lugar de `var(--surface2)` — menos peso visual, más limpio
+- Cards actividades usan mismos IDs DOM (`actseg-{tramo}-{sid}`, `acttotal-{sid}`) — funciones `actAdjTramo` / `actUpdateHeader` sin modificar
+- Familias con al menos un tramo > 0 → expandidas por defecto; todas en 0 → colapsadas
+- Migración Firebase→Supabase: postergada indefinidamente (complejidad alta sin beneficio urgente)
+
+**Pendientes:**
+- [ ] Verificar preview de WhatsApp con logo real subido desde superadmin
+- [ ] Editar actividad existente (nombre, precios, fecha límite)
+- [ ] Link apoderado generado desde la app por el tesorero
+- [ ] Exportar estado de pagos (Excel/imagen)
+- [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
+- [ ] Comprobante de pago individual
+
+---
+
 ## [2026-04-30] — v2.61→v2.62: Open Graph + logo colegio en superadmin
 
 **Resumen:** Links de WhatsApp ahora muestran preview con título, descripción e imagen. Se agregó upload real de logo por colegio en el superadmin (Canvas resize → base64 → Firebase). El logo se muestra en el header de la vista apoderado y alimenta el endpoint dinámico `/api/og.py` que genera la imagen OG con el logo del colegio.
