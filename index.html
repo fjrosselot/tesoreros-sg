@@ -2739,7 +2739,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.86";
+const APP_VERSION="v2.87";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2966,8 +2966,9 @@ function actUpdateSegPanel(){
     var comp=window._actCompromisos[sid]||{a:0,adol:0,n:0};
     if(typeof comp==="number")return;
     var total=(comp.a||0)*pa+(comp.adol||0)*padol+(comp.n||0)*pn;
+    var hasAny=(comp.a||0)+(comp.adol||0)+(comp.n||0)>0;
     var el=document.getElementById("acttotal-"+sid);
-    if(el)el.textContent=total>0?fmt(total):"—";
+    if(el){el.textContent=total>0?fmt(total):"—";el.style.color=hasAny?"#3dd68c":"var(--muted)";}
   });
   actUpdateHeader();
 }
@@ -2975,6 +2976,27 @@ function actToggleAdolPanel(on){
   document.querySelectorAll("[id^='actseg-adol-wrap-']").forEach(function(el){el.style.display=on?"inline-flex":"none";});
   var hdr=document.getElementById("actseg-hdr-adol");
   if(hdr)hdr.style.display=on?"table-cell":"none";
+}
+function actFilterCards(term){
+  var t=(term||'').toLowerCase().trim();
+  document.querySelectorAll('[id^="actseg-card-"]').forEach(function(card){
+    var name=card.dataset.name||'';
+    card.style.display=(!t||name.indexOf(t)!==-1)?'':'none';
+  });
+}
+function actToggleCard(sid){
+  var body=document.getElementById('actseg-body-'+sid);
+  var arrow=document.getElementById('actseg-arrow-'+sid);
+  var hdr=document.getElementById('actseg-hdr-'+sid);
+  if(!body)return;
+  var opening=body.style.display==='none';
+  body.style.display=opening?'block':'none';
+  if(arrow)arrow.textContent=opening?'▴':'▾';
+  if(hdr){
+    hdr.style.marginBottom=opening?'6px':'';
+    hdr.style.paddingBottom=opening?'6px':'';
+    hdr.style.borderBottom=opening?'1px solid var(--border)':'';
+  }
 }
 function qSetInscripcion(on){
   window._inscripcionOnline=on;
@@ -3215,7 +3237,10 @@ function openActividadPanel(id){
   var isCerrada=q.estado==="cerrada";
   var rows,listHeader;
   if(esTramos){
-    listHeader='';
+    listHeader='<div style="margin-bottom:10px">'
+      +'<input type="text" placeholder="Buscar familia..." oninput="actFilterCards(this.value)" '
+      +'style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;outline:none;font-family:Roboto,sans-serif;box-sizing:border-box">'
+      +'</div>';
     var bMinus='width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;color:var(--muted);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif';
     var bPlus='width:28px;height:28px;border-radius:50%;border:none;background:#2d5be3;color:white;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif';
     rows=state.students.filter(function(s){return!s.paused;}).map(function(s){
@@ -3225,13 +3250,14 @@ function openActividadPanel(id){
       var pagado=isPaid(s.id,q.id);
       var ap=s.name.split(",")[0]||s.name;
       var hasAny=(c.a||0)+(c.adol||0)+(c.n||0)>0;
+      var isOpen=hasAny||isCerrada;
       function tramoRow(tramo,label,precio,count){
         var domId='actseg-'+tramo+'-'+s.id;
         var labelHtml='<div><span style="font-size:13px;font-weight:500">'+label+'</span>'
           +'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+fmt(precio)+'</span></div>';
         if(isCerrada){
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0">'
-            +labelHtml+'<span id="'+domId+'" style="font-size:14px;font-weight:700;color:var(--text);min-width:20px;text-align:center">'+count+'</span></div>';
+          return count>0?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0">'
+            +labelHtml+'<span id="'+domId+'" style="font-size:14px;font-weight:700;color:var(--text);min-width:20px;text-align:center">'+count+'</span></div>':'';
         }
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0">'
           +labelHtml
@@ -3241,16 +3267,21 @@ function openActividadPanel(id){
           +'<button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\''+tramo+'\',1)" style="'+bPlus+'">+</button>'
           +'</div></div>';
       }
-      return '<div style="border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:8px">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">'
+      var statusColor=pagado?'#3dd68c':(hasAny?'#f5c842':'var(--muted)');
+      var statusIcon=hasAny?(pagado?'✓':'⏳'):'—';
+      var totalColor=hasAny?'#3dd68c':'var(--muted)';
+      var bodyContent=tramoRow('a','Adultos',q.precioAdulto||0,c.a)
+        +(q.inclAdol?tramoRow('adol','Adolesc.',q.precioAdolescente||0,c.adol):'')
+        +tramoRow('n','Niños',q.precioNino||0,c.n);
+      return '<div id="actseg-card-'+s.id+'" data-name="'+ap.toLowerCase()+'" style="border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:8px">'
+        +'<div onclick="actToggleCard(\''+s.id+'\')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;'+(isOpen?'margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)':'')+'" id="actseg-hdr-'+s.id+'">'
         +'<span style="font-weight:600;font-size:13px">'+ap+'</span>'
         +'<div style="display:flex;align-items:center;gap:6px">'
-        +'<span id="acttotal-'+s.id+'" style="font-size:12px;font-weight:600;color:'+(hasAny?'#3dd68c':'var(--muted)')+'">'+(monto>0?fmt(monto):'—')+'</span>'
-        +'<span style="font-size:13px;color:'+(pagado?'#3dd68c':(hasAny?'#f5c842':'var(--muted)'))+'">'+(hasAny?(pagado?'✓':'⏳'):'—')+'</span>'
+        +'<span id="acttotal-'+s.id+'" style="font-size:12px;font-weight:600;color:'+totalColor+'">'+(monto>0?fmt(monto):'—')+'</span>'
+        +'<span style="font-size:13px;color:'+statusColor+'">'+statusIcon+'</span>'
+        +'<span id="actseg-arrow-'+s.id+'" style="font-size:11px;color:var(--muted)">'+(isOpen?'▴':'▾')+'</span>'
         +'</div></div>'
-        +tramoRow('a','Adultos',q.precioAdulto||0,c.a)
-        +(q.inclAdol?tramoRow('adol','Adolesc.',q.precioAdolescente||0,c.adol):'')
-        +tramoRow('n','Niños',q.precioNino||0,c.n)
+        +'<div id="actseg-body-'+s.id+'" style="display:'+(isOpen?'block':'none')+'">'+bodyContent+'</div>'
         +'</div>';
     }).join('');
   } else {
