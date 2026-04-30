@@ -1,4 +1,4 @@
-# Tesoreros App — Contexto del Proyecto (v2.60)
+# Tesoreros App — Contexto del Proyecto (v2.62)
 
 ## Descripción
 Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vanilla (sin frameworks), Firebase Realtime Database para persistencia, Vercel para hosting. Multi-tenant: login con colegio + curso + PIN.
@@ -16,10 +16,14 @@ Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vani
 ```
 tesoreros-sg/
 ├── index.html                    ← TODO el código (HTML + CSS + JS en un solo archivo)
+├── og-image.png                  ← imagen OG estática de fallback
+├── api/
+│   ├── og.py                     ← endpoint Python: genera OG image con logo del colegio (Pillow)
+│   └── requirements.txt          ← Pillow==10.4.0
 ├── vercel.json                   ← config deploy estático Vercel
 └── .github/workflows/backup.yml  ← backup diario a GitHub (6 AM Chile)
 ```
-Single file — no hay build process, no hay carpetas `src/`.
+Single file — no hay build process, no hay carpetas `src/`. La carpeta `api/` contiene funciones serverless Python.
 
 ## Firebase
 - **Proyecto:** bsg-7772d
@@ -101,7 +105,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - **Estado global:** `state` con `{students, quotas, payments, expenses, log, saldoInicial}`
 - **Render:** `render()` → `getContent()` → `renderResumen/Cuotas/Pagos/Gastos/Alumnos/Pendientes/Reportes/Log()`
 - **Firebase:** `window._fbSave(state)` / `window._fbStartPolling(callback)`
-- **Versión visible:** `APP_VERSION = "v2.60"`
+- **Versión visible:** `APP_VERSION = "v2.62"`
 
 ## Pestañas (TAB_META)
 `resumen` → `cuotas` → `pagos` → `gastos` → `alumnos` → `pendientes` → `reportes` → `log`
@@ -141,6 +145,8 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Formulario tramos rediseñado (Alt A): cards expandibles con estados (pendiente/expandido/confirmado), header sticky navy con barra de progreso, búsqueda integrada, footer sticky "Guardar inscripción"
 - Vista apoderado: toggle dark/light mode, tabs Abiertas/Pasadas para actividades colectivas
 - Botón "Vista apoderado" en sidebar desktop y header móvil (abre en nueva pestaña)
+- Logo colegio: upload real en superadmin (Canvas resize → base64 → Firebase `/plataforma/colegios/{cid}/logoBase64`), visible en header apoderado
+- Open Graph: meta tags OG en `<head>` + endpoint dinámico `/api/og.py` (Pillow) genera imagen 1200×630 con logo del colegio desde Firebase; `og:image` apunta a `https://tesoreros-app.vercel.app/api/og?colegio=sg`
 
 ## Modo Lote (Pagos)
 - `loteSelected` = Set en memoria con student IDs

@@ -1,5 +1,27 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-30] — v2.61→v2.62: Open Graph + logo colegio en superadmin
+
+**Resumen:** Links de WhatsApp ahora muestran preview con título, descripción e imagen. Se agregó upload real de logo por colegio en el superadmin (Canvas resize → base64 → Firebase). El logo se muestra en el header de la vista apoderado y alimenta el endpoint dinámico `/api/og.py` que genera la imagen OG con el logo del colegio.
+
+**Archivos:** `index.html`, `og-image.png` (nuevo), `api/og.py` (nuevo), `api/requirements.txt` (nuevo), `CLAUDE.md`
+
+**Decisiones:**
+- Logo como base64 en Firebase RTDB (`/plataforma/colegios/{cid}/logoBase64`) — sin servicio externo, funciona con auth ya existente.
+- Endpoint Python en `/api/og.py` con Pillow — genera PNG 1200×630 con logo del colegio al vuelo; `og:image` en HTML apunta a `/api/og?colegio=sg`.
+- Resized a máx 400px client-side con Canvas antes de guardar — evita almacenar imágenes enormes en Firebase.
+- `og:image` estático apunta a `sg` hardcodeado por ahora — si se suman colegios se puede agregar Edge Middleware para hacerlo dinámico por URL.
+
+**Pendientes:**
+- [ ] Verificar preview de WhatsApp con logo real subido desde superadmin
+- [ ] Editar actividad existente (nombre, precios, fecha límite)
+- [ ] Link apoderado generado desde la app por el tesorero
+- [ ] Exportar estado de pagos (Excel/imagen)
+- [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
+- [ ] Comprobante de pago individual
+
+---
+
 ## [2026-04-29] — v2.42→v2.46: modal edición variable, inscripción online, refactor cuotas/actividades
 
 **Resumen:** Sesión larga. Fix modal edición cuotas variables (muestra wizard completo con parámetros precargados). Modales con versión desktop (max-width, fixed header/footer, scroll body). Fix Bingo $0 en ficha alumno y --subtle invisible en light mode. Feature inscripción online: link compartible para actividades, la gente se auto-inscribe vía URL pública hasta fecha límite. Refactor conceptual: cuotas siempre obligatorias (igual/excepciones), actividades siempre opcionales — modo "por tramos de familia" (adulto/adolescente/niño) migrado de cuotas a actividades.
