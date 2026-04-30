@@ -1964,10 +1964,10 @@ function renderCuotas(){
 
 // ── Cuotas desktop master-detail ─────────────────────────────────────────
 
-function _dpStat(label,val,color){
-  return '<div style="background:var(--surface);padding:10px 12px;text-align:center">'
-    +'<div style="font-size:10px;color:var(--muted)">'+label+'</div>'
-    +'<div style="font-size:16px;font-weight:700;margin-top:1px;color:'+color+'">'+val+'</div>'
+function _dpStat(label,val,color,last){
+  return '<div style="flex:1;padding:14px 12px;text-align:center'+(last?'':';border-right:1px solid var(--border)')+'">'
+    +'<div style="font-size:10px;color:var(--muted);margin-bottom:3px">'+label+'</div>'
+    +'<div style="font-size:17px;font-weight:700;color:'+color+'">'+val+'</div>'
     +'</div>';
 }
 
@@ -2067,21 +2067,13 @@ function renderCuotasDetailPanel(item){
   var isCuota=item.tipo!=='actividad';
   var esTramos=item.modoPrecios==='tramos';
   var html='';
-  // Header
-  html+='<div style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">';
-  html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px">'+(isCuota?'Cuota activa':'Actividad colectiva')+'</div>';
-  html+='<div style="font-size:17px;font-weight:700;color:var(--text)">'+item.name+'</div>';
-  html+='</div>';
-  // Stats
+  // ── Top section: header + stats + progress (single bottom border) ──
   var itemPct,gapHtml;
-  html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);flex-shrink:0">';
   if(isCuota){
     var st=qStats(item.id);
     itemPct=st.total>0?Math.round(st.paid/st.total*100):0;
     gapHtml=st.pending>0?'<span style="color:#f5c842">⚠ '+st.pending+' pendientes</span>':'<span style="color:#3dd68c">✓ Todos pagaron</span>';
-    html+=_dpStat('Pagaron',st.paid,'#3dd68c');
-    html+=_dpStat('Pendientes',st.pending,st.pending>0?'#f5c842':'#3dd68c');
-    html+=_dpStat('Recaudado',fmt(st.collected),'#2d5be3');
+    var statsHtml=_dpStat('Pagaron',st.paid,'#3dd68c')+_dpStat('Pendientes',st.pending,st.pending>0?'#f5c842':'#3dd68c')+_dpStat('Recaudado',fmt(st.collected),'#2d5be3',true);
   } else {
     var comp=item.compromisos||{};
     var totalU=Object.values(comp).reduce(function(s,v){return s+(typeof v==='object'?((v.a||0)+(v.adol||0)+(v.n||0)):(v||0));},0);
@@ -2092,19 +2084,24 @@ function renderCuotasDetailPanel(item){
     var metaStr=item.metaAdultos?(item.metaAdultos+'A / '+item.metaNinos+'N'):(meta||'—');
     gapHtml=gap>0?'<span style="color:#f5c842">⚠ Faltan '+gap+(item.metaAdultos?' personas':' unidades')+'</span>'
       :(meta>0?'<span style="color:#3dd68c">✓ Meta cubierta</span>':'');
-    html+=_dpStat('Inscritos',totalU,'#3dd68c');
-    html+=_dpStat('Meta',metaStr,'var(--text)');
-    html+=_dpStat('Comprometido',fmt(totalM),'#2d5be3');
+    var statsHtml=_dpStat('Inscritos',totalU,'#3dd68c')+_dpStat('Meta',metaStr,'var(--text)')+_dpStat('Comprometido',fmt(totalM),'#2d5be3',true);
   }
+  html+='<div style="border-bottom:1px solid var(--border);flex-shrink:0">';
+  // Name + type label
+  html+='<div style="padding:18px 20px 14px">';
+  html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px">'+(isCuota?'Cuota activa':'Actividad colectiva')+'</div>';
+  html+='<div style="font-size:18px;font-weight:700;color:var(--text)">'+item.name+'</div>';
   html+='</div>';
-  // Progress
-  html+='<div style="padding:12px 20px;border-bottom:1px solid var(--border2);flex-shrink:0">';
-  html+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px"><span style="color:var(--muted)">'+itemPct+'% completado</span>'+gapHtml+'</div>';
+  // Stats row
+  html+='<div style="display:flex;border-top:1px solid var(--border)">'+statsHtml+'</div>';
+  // Progress bar
+  html+='<div style="padding:10px 20px 14px">';
+  html+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px"><span style="color:var(--muted)">'+itemPct+'% completado</span>'+gapHtml+'</div>';
   html+='<div class="prog-bar"><div class="prog-fill" style="width:'+itemPct+'%;background:'+(itemPct>=100?'#3dd68c':'#2d5be3')+'"></div></div>';
   html+='</div>';
-  // Edit form
-  html+='<div style="flex:1;overflow-y:auto;padding:16px 20px">';
-  html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Configuración</div>';
+  html+='</div>';
+  // ── Edit form ──
+  html+='<div style="flex:1;overflow-y:auto;padding:20px 20px 4px">';
   if(isCuota){
     var isVariable=item.amounts&&Object.keys(item.amounts).length>0;
     html+=field('Nombre','dp-name','','text',item.name);
@@ -2687,7 +2684,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.82";
+const APP_VERSION="v2.83";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
