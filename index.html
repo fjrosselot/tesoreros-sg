@@ -340,7 +340,7 @@ input,select{font-family:'Roboto',sans-serif;}
 .cal-popup{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);
   border:1px solid var(--border2);border-radius:var(--r);z-index:100;padding:12px;
   box-shadow:0 8px 24px rgba(0,0,0,.4);}
-@media(min-width:700px){.cal-popup{right:auto;width:300px;}}
+@media(min-width:700px){.cal-popup{right:auto;width:324px;}}
 .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
 .cal-nav{background:transparent;border:1px solid var(--border2);border-radius:6px;
   color:var(--text);width:30px;height:30px;cursor:pointer;font-size:16px;display:flex;
@@ -1136,21 +1136,23 @@ function renderApoderadoView(){
     }
     // Contenido tab Abiertas
     if(apTab === "abiertas"){
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
       actAbiertas.forEach(function(act){
         var link = _apPublicToken
           ? (window.location.origin + "/" + _SESSION.colegioId + "/" + _SESSION.cursoId + "/" + _apPublicToken + "/i/" + act.id)
           : "";
         var btnHtml = link
-          ? '<button onclick="window.location.href=\'' + link + '\'" style="background:var(--navy);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-family:Roboto,sans-serif;font-weight:500">Confirmar asistencia →</button>'
-          : '<button style="background:var(--border);color:var(--muted);border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:default;font-family:Roboto,sans-serif;opacity:0.6" disabled>Sin link de inscripción</button>';
-        html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px">';
-        html += '<div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px">' + (act.name||act.id) + '</div>';
+          ? '<button onclick="window.location.href=\'' + link + '\'" style="width:100%;background:var(--navy);color:#fff;border:none;padding:8px 10px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Roboto,sans-serif;font-weight:500">Confirmar →</button>'
+          : '<button style="width:100%;background:var(--border);color:var(--muted);border:none;padding:8px 10px;border-radius:6px;font-size:12px;cursor:default;font-family:Roboto,sans-serif;opacity:0.6" disabled>Sin link</button>';
+        html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">';
+        html += '<div><div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:4px">' + (act.name||act.id) + '</div>';
         if(act.fechaLimiteInscripcion){
-          html += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Inscripción hasta: ' + act.fechaLimiteInscripcion + '</div>';
+          html += '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Hasta: ' + act.fechaLimiteInscripcion + '</div>';
         }
-        html += '<div style="margin-top:8px">' + btnHtml + '</div>';
+        html += '</div><div>' + btnHtml + '</div>';
         html += '</div>';
       });
+      html += '</div>';
     }
     // Contenido tab Pasadas
     if(apTab === "pasadas"){
@@ -2424,7 +2426,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.77";
+const APP_VERSION="v2.78";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
