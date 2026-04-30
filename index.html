@@ -611,6 +611,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="sidebar-exit" id="desk-restore-btn" onclick="requireAdmin(openRestore)" style="display:none;margin-bottom:4px">📤 Restaurar datos</button>
       <button class="sidebar-exit" id="desk-mycourses-btn" onclick="volverMisCursos()" style="display:none;margin-bottom:4px">📚 Mis cursos</button>
       <button class="sidebar-exit" onclick="openApoderadoPreview()" style="margin-bottom:4px">👁 Vista apoderado</button>
+      <button class="sidebar-exit" id="desk-superadmin-btn" onclick="openSuperAdmin()" style="display:none;margin-bottom:4px">⚙️ Superadmin</button>
       <div class="theme-toggle" onclick="applyTheme(window._currentTheme==='dark'?'light':'dark')">
         <span class="toggle-emoji">☀️ Light</span>
         <div class="toggle-track" id="theme-toggle-track"><div class="toggle-thumb"></div></div>
@@ -648,6 +649,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="openCambiarRol()">🔐</span>
       <button class="exit-btn" id="mob-mycourses-btn" onclick="volverMisCursos()" style="display:none">📚</button>
       <button class="exit-btn" onclick="openApoderadoPreview()" title="Vista apoderado">👁</button>
+      <button class="exit-btn" id="mob-superadmin-btn" onclick="openSuperAdmin()" style="display:none" title="Superadmin">⚙️</button>
       <button id="mob-theme-btn" onclick="applyTheme(window._currentTheme==='dark'?'light':'dark')">☀️</button>
       <button class="exit-btn" id="mob-exit-btn" onclick="doLogout()">Salir</button>
     </div>
@@ -760,10 +762,10 @@ async function doLoginTesorero(){
     const nombre  = data.displayName || email;
 
     // Guardar sesión tesorero (sin curso aún)
-    sessionStorage.setItem("sesionv2", JSON.stringify({ _type:"tesorero", uid, idToken, nombre }));
+    sessionStorage.setItem("sesionv2", JSON.stringify({ _type:"tesorero", uid, idToken, nombre, email }));
 
     document.getElementById("login").style.display = "none";
-    loadMisCursos(uid, idToken, nombre);
+    loadMisCursos(uid, idToken, nombre, email);
 
   } catch(e){
     showLoginErr("Error de conexión.");
@@ -787,7 +789,7 @@ async function doForgotPassword(){
 let _mcCursos = {};
 let _mcAuth   = {};
 
-async function loadMisCursos(uid, idToken, nombre){
+async function loadMisCursos(uid, idToken, nombre, email){
   document.getElementById("mis-cursos").style.display = "block";
   var mc = document.getElementById("mc-content");
   mc.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px">⏳ Cargando...</div>';
@@ -799,7 +801,7 @@ async function loadMisCursos(uid, idToken, nombre){
   try {
     var r = await fetch(_FB_BASE + "/usuarios/" + uid + ".json?auth=" + _SA_FB_SECRET);
     var userData = await r.json() || {};
-    _mcAuth = { uid, idToken, nombre };
+    _mcAuth = { uid, idToken, nombre, email: email || "" };
     renderMisCursos(userData);
   } catch(e){
     mc.innerHTML = '<div style="color:var(--red);padding:20px">❌ Error al cargar cursos.</div>';
@@ -853,6 +855,7 @@ async function elegirCurso(key){
     uid:          _mcAuth.uid,
     idToken:      _mcAuth.idToken,
     nombre:       _mcAuth.nombre,
+    email:        _mcAuth.email || "",
     colegioId:    c.colegioId,
     cursoId:      c.cursoId,
     temporada:    c.temporada,
@@ -1377,7 +1380,7 @@ document.addEventListener("DOMContentLoaded", function(){
       if(ses._type === "tesorero"){
         // Tesorero sin curso seleccionado → Mis cursos
         document.getElementById("login").style.display = "none";
-        loadMisCursos(ses.uid, ses.idToken, ses.nombre);
+        loadMisCursos(ses.uid, ses.idToken, ses.nombre, ses.email || "");
         return;
       }
       // Sesión con curso (tesorero en app o apoderado)
@@ -1467,15 +1470,15 @@ function startApp(admin){
 
 function volverMisCursos(){
   var ses = JSON.parse(sessionStorage.getItem("sesionv2")||"{}");
-  var uid = ses.uid, idToken = ses.idToken, nombre = ses.nombre;
+  var uid = ses.uid, idToken = ses.idToken, nombre = ses.nombre, email = ses.email || "";
   if(!uid){ doLogout(); return; }
   // Resetear a sesión tesorero sin curso
-  sessionStorage.setItem("sesionv2", JSON.stringify({ _type:"tesorero", uid, idToken, nombre }));
+  sessionStorage.setItem("sesionv2", JSON.stringify({ _type:"tesorero", uid, idToken, nombre, email }));
   _SESSION = null; _FB_URL = null; isAdmin = false;
   if(window._fbPollingTimer){ clearInterval(window._fbPollingTimer); window._fbPollingTimer = null; }
   state = null;
   document.getElementById("app").classList.add("hidden");
-  loadMisCursos(uid, idToken, nombre);
+  loadMisCursos(uid, idToken, nombre, email);
 }
 
 function updateAdminUI(){
@@ -1494,6 +1497,10 @@ function updateAdminUI(){
   ["desk-backup-btn","desk-restore-btn"].forEach(function(id){
     var el = document.getElementById(id);
     if(el) el.style.display = isAdmin ? "flex" : "none";
+  });
+  var isSA = _SESSION && _SESSION.email && _SUPERADMIN_EMAILS.includes(_SESSION.email.toLowerCase());
+  ["desk-superadmin-btn","mob-superadmin-btn"].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.style.display = isSA ? "" : "none";
   });
   var fab = document.getElementById("ai-fab");
   if(fab) fab.style.display = isAdmin ? "flex" : "none";
@@ -2360,7 +2367,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.64";
+const APP_VERSION="v2.65";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
