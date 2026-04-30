@@ -2125,8 +2125,11 @@ function renderCuotasDetailPanel(item){
   var inp='width:100%;border-radius:8px;padding:10px 12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;outline:none;font-family:Roboto,sans-serif;box-sizing:border-box';
   var lbl='style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px"';
   var row16='margin-bottom:16px';
-  html+='<div style="flex:1;overflow-y:auto;padding:20px 24px;background:var(--surface2)">';
-  html+='<div style="max-width:480px;margin:0 auto">';
+  html+='<div style="flex:1;overflow-y:auto;background:var(--surface)">';
+  html+='<div style="padding:16px 24px 4px;border-bottom:1px solid var(--border)">'
+    +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)">Editar</div>'
+    +'</div>';
+  html+='<div style="padding:20px 24px;max-width:560px">';
 
   if(isCuota){
     var isVariable=item.amounts&&Object.keys(item.amounts).length>0;
@@ -2736,7 +2739,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.84";
+const APP_VERSION="v2.85";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
