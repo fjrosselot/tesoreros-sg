@@ -260,6 +260,9 @@ input,select{font-family:'Roboto',sans-serif;}
 .rt-area b,.rt-area strong{font-weight:700;}
 .rt-area i,.rt-area em{font-style:italic;}
 .rt-area u{text-decoration:underline;}
+.note-display{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;}
+.note-display ul,.note-display ol{padding-left:16px;margin:2px 0;}
+.note-display li{margin:1px 0;}
 .btn-cancel{flex:1;padding:14px;background:transparent;border:1px solid var(--border2);
   border-radius:var(--r);color:var(--muted);font-size:14px;font-weight:500;}
 .btn-save{flex:2;padding:14px;background:var(--navy);border:none;border-radius:var(--r);
@@ -1204,7 +1207,7 @@ function renderApoderadoView(){
       html += '<div style="flex:1;min-width:0;margin-right:12px">';
       html += '<div style="font-size:13px;font-weight:500;color:var(--text)">' + e.name + '</div>';
       html += '<div style="font-size:11px;color:var(--muted);margin-top:1px">' + fmtDateES(e.date) + (e.category && e.category !== 'General' ? ' · ' + e.category : '') + '</div>';
-      if(e.note) html += '<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">' + e.note + '</div>';
+      if(e.note) html += '<div class="note-display">' + e.note + '</div>';
       html += '</div>';
       html += '<div style="font-size:13px;font-weight:600;color:var(--red);white-space:nowrap">−' + fmt(e.amount) + '</div>';
       html += '</div>';
@@ -2145,7 +2148,7 @@ function renderGastos(){
   sorted.forEach(e=>{
     const hidden=gastosSearch&&!(e.name.toLowerCase().includes(gastosSearch.toLowerCase())||e.category.toLowerCase().includes(gastosSearch.toLowerCase()))?"display:none;":"";
     html+=`<div class="card" data-gname="${e.name.toLowerCase()} ${e.category.toLowerCase()}" style="display:flex;align-items:center;gap:12px;padding:13px 14px;${hidden}">
-      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${fmtDateES(e.date)} · ${e.category}</div>${e.note?`<div class="row-sub" style="margin-top:2px">${e.note}</div>`:""}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${fmtDateES(e.date)} · ${e.category}</div>${e.note?`<div class="note-display">${e.note}</div>`:""}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span style="font-size:14px;font-weight:600;color:#f5c842">${fmt(e.amount)}</span>
         <button class="icon-btn" onclick="requireAdmin(()=>openEditExpense('${e.id}'))">✏️</button>
@@ -2353,13 +2356,32 @@ function richTextField(label,id,placeholder,value){
     +'<button '+b+'italic\')" title="Cursiva"><i>I</i></button>'
     +'<button '+b+'underline\')" title="Subrayado"><u>U</u></button>'
     +'<div class="rt-sep"></div>'
-    +'<button '+b+'insertUnorderedList\')" title="Lista">≡</button>'
+    +'<button '+b+'insertUnorderedList\')" title="Lista con viñetas">≡</button>'
+    +'<button class="rt-btn" type="button" onmousedown="event.preventDefault();rtNormal()" title="Texto normal (salir de lista)">¶</button>'
     +'</div>'
-    +'<div id="'+id+'" class="rt-area" contenteditable="true" data-placeholder="'+(placeholder||'')+'">'+( value||'')+'</div>'
+    +'<div id="'+id+'" class="rt-area" contenteditable="true" onkeydown="rtKeyDown(event)" data-placeholder="'+(placeholder||'')+'">'+( value||'')+'</div>'
     +'</div>'
     +'</div>';
 }
 function rtCmd(cmd){ document.execCommand(cmd,false,null); }
+function rtNormal(){
+  var sel=window.getSelection();
+  if(!sel.rangeCount) return;
+  var n=sel.getRangeAt(0).startContainer;
+  var inList=false;
+  var c=n;
+  while(c&&c!==document){ if(c.nodeName==='LI'||c.nodeName==='UL'||c.nodeName==='OL'){inList=true;break;} c=c.parentNode; }
+  if(inList) document.execCommand('insertUnorderedList');
+}
+function rtKeyDown(e){
+  if(e.key!=='Enter') return;
+  var sel=window.getSelection();
+  if(!sel.rangeCount) return;
+  var n=sel.getRangeAt(0).startContainer;
+  var li=n;
+  while(li&&li.nodeName!=='LI') li=li.parentNode;
+  if(li&&(li.textContent||'').trim()===''){e.preventDefault();document.execCommand('insertUnorderedList');}
+}
 function readRichNote(id){
   var el=document.getElementById(id);
   if(!el) return '';
@@ -2367,7 +2389,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.65";
+const APP_VERSION="v2.66";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -4741,6 +4763,7 @@ function interpretAIInput(){
 
 // ══════════════ SUPERADMIN ══════════════════════════════════════
 async function openSuperAdmin(){
+  document.getElementById("app").classList.add("hidden");
   const panel = document.getElementById("superadmin");
   panel.style.display = "block";
   panel.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted)">⏳ Cargando...</div>';
@@ -4752,6 +4775,20 @@ async function openSuperAdmin(){
   } catch(e){
     panel.innerHTML = '<div style="color:var(--red);padding:40px">❌ Error al cargar datos del sistema.</div>';
   }
+}
+
+function saVolverCurso(){
+  document.getElementById("superadmin").style.display = "none";
+  document.getElementById("app").classList.remove("hidden");
+}
+async function saAccederCurso(cid, curid){
+  if(!_mcAuth && _SESSION){
+    _mcAuth = { uid:_SESSION.uid, idToken:_SESSION.idToken, nombre:_SESSION.nombre, email:_SESSION.email||"" };
+  }
+  const col = _saStore['col:'+cid] || {};
+  const cur = _saStore['cur:'+cid+':'+curid] || {};
+  document.getElementById("superadmin").style.display = "none";
+  await selectCurso({ colegioId:cid, cursoId:curid, colegioNombre:col.nombre||cid, cursoNombre:cur.nombre||curid });
 }
 
 // Mapa global para datos SA — evita pasar JSON por onclick (rompe HTML con comillas dobles)
@@ -4771,7 +4808,12 @@ function renderSuperAdmin(panel, colegiosData){
 
   let html = '<div class="sa-header">';
   html += '<div><div class="sa-title">⚙️ Superadmin — Tesoreros App</div><div class="sa-sub">'+APP_VERSION+'</div></div>';
+  html += '<div style="display:flex;gap:8px;align-items:center">';
+  if(_SESSION && _SESSION.cursoId){
+    html += '<button onclick="saVolverCurso()" style="padding:9px 16px;border-radius:var(--r);background:var(--navy);border:none;color:#fff;font-size:13px;font-weight:500;cursor:pointer;font-family:Roboto,sans-serif">← '+(_SESSION.cursoNombre||_SESSION.cursoId)+'</button>';
+  }
   html += '<button onclick="doLogout()" style="padding:9px 16px;border-radius:var(--r);background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">Salir</button>';
+  html += '</div>';
   html += '</div>';
 
   html += '<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">';
@@ -4819,6 +4861,7 @@ function renderSuperAdmin(panel, colegiosData){
           html += '</div>';
           html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">';
           html += '<span class="sa-badge '+(cur.activo?"sa-badge-ok":"sa-badge-off")+'">'+(cur.activo?"Abierto":"Cerrado")+'</span>';
+          html += '<button onclick="saAccederCurso(\''+cid+'\',\''+curid+'\')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--navy);background:var(--navy-dim);color:var(--navy-light);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif" title="Entrar a este curso">→</button>';
           html += '<button onclick="saEditCurso(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Editar curso">✏️</button>';
           html += '<button onclick="saImportAlumnos(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Importar alumnos">👥</button>';
           html += '<button onclick="saManageTemporadas(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Gestionar años/links">📅</button>';
