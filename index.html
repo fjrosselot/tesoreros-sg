@@ -248,6 +248,18 @@ input,select{font-family:'Roboto',sans-serif;}
   border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;}
 .sheet-body{padding:16px 20px;}
 .sheet-footer{display:flex;gap:8px;padding:0 20px 16px;}
+.rt-wrap{border:1.5px solid var(--border2);border-radius:var(--r);overflow:hidden;}
+.rt-toolbar{display:flex;align-items:center;gap:2px;padding:5px 8px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.rt-btn{background:transparent;border:1px solid transparent;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:13px;color:var(--text);font-family:Roboto,sans-serif;line-height:1.4;transition:background .1s;}
+.rt-btn:hover{background:var(--border);}
+.rt-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.rt-sep{width:1px;background:var(--border);align-self:stretch;margin:2px 3px;}
+.rt-area{padding:10px 14px;min-height:72px;max-height:160px;overflow-y:auto;outline:none;font-size:14px;font-family:Roboto,sans-serif;color:var(--text);line-height:1.6;background:var(--bg);}
+.rt-area ul,.rt-area ol{padding-left:20px;margin:4px 0;}
+.rt-area li{margin:1px 0;}
+.rt-area b,.rt-area strong{font-weight:700;}
+.rt-area i,.rt-area em{font-style:italic;}
+.rt-area u{text-decoration:underline;}
 .btn-cancel{flex:1;padding:14px;background:transparent;border:1px solid var(--border2);
   border-radius:var(--r);color:var(--muted);font-size:14px;font-weight:500;}
 .btn-save{flex:2;padding:14px;background:var(--navy);border:none;border-radius:var(--r);
@@ -2126,7 +2138,7 @@ function renderGastos(){
   sorted.forEach(e=>{
     const hidden=gastosSearch&&!(e.name.toLowerCase().includes(gastosSearch.toLowerCase())||e.category.toLowerCase().includes(gastosSearch.toLowerCase()))?"display:none;":"";
     html+=`<div class="card" data-gname="${e.name.toLowerCase()} ${e.category.toLowerCase()}" style="display:flex;align-items:center;gap:12px;padding:13px 14px;${hidden}">
-      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${fmtDateES(e.date)} · ${e.category}${e.note?" · "+e.note:""}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${fmtDateES(e.date)} · ${e.category}</div>${e.note?`<div class="row-sub" style="margin-top:2px">${e.note}</div>`:""}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span style="font-size:14px;font-weight:600;color:#f5c842">${fmt(e.amount)}</span>
         <button class="icon-btn" onclick="requireAdmin(()=>openEditExpense('${e.id}'))">✏️</button>
@@ -2325,8 +2337,30 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 function textareaField(label,id,placeholder,value){return '<div class="field"><label>'+label+'</label><textarea id="'+id+'" placeholder="'+(placeholder||'')+'" rows="3" style="width:100%;box-sizing:border-box;padding:11px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;font-family:Roboto,sans-serif;outline:none;resize:vertical;line-height:1.5">'+(value?value.replace(/</g,'&lt;').replace(/>/g,'&gt;'):'')+'</textarea></div>';}
+function richTextField(label,id,placeholder,value){
+  var b='class="rt-btn" type="button" onmousedown="event.preventDefault();rtCmd(\'';
+  return '<div class="field"><label>'+label+'</label>'
+    +'<div class="rt-wrap">'
+    +'<div class="rt-toolbar">'
+    +'<button '+b+'bold\')" title="Negrita"><b>B</b></button>'
+    +'<button '+b+'italic\')" title="Cursiva"><i>I</i></button>'
+    +'<button '+b+'underline\')" title="Subrayado"><u>U</u></button>'
+    +'<div class="rt-sep"></div>'
+    +'<button '+b+'insertUnorderedList\')" title="Lista">≡</button>'
+    +'</div>'
+    +'<div id="'+id+'" class="rt-area" contenteditable="true" data-placeholder="'+(placeholder||'')+'">'+( value||'')+'</div>'
+    +'</div>'
+    +'</div>';
+}
+function rtCmd(cmd){ document.execCommand(cmd,false,null); }
+function readRichNote(id){
+  var el=document.getElementById(id);
+  if(!el) return '';
+  var v=el.innerHTML.trim();
+  return (v===''||v==='<br>')?'':v;
+}
 
-const APP_VERSION="v2.63";
+const APP_VERSION="v2.64";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3707,10 +3741,10 @@ function saveEditQuota(id){
   }
   saveData();closeSheet();render();showToast("✓ Cuota actualizada");
 }
-function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+textareaField("Nota (opcional)","f-note","Detalle adicional...",e.note||""),"saveEditExpense('"+id+"')");}
-function saveEditExpense(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses=state.expenses.map(e=>e.id===id?{...e,name,amount,category,date,note}:e);addLog("✏️","Gasto editado: \""+name+"\" — "+fmt(amount)+" ("+category+")");saveData();closeSheet();render();showToast("✓ Gasto actualizado");}
-function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+textareaField("Nota (opcional)","f-note","Detalle adicional..."),"saveAddExpense()");}
-function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});addLog("🧾",`Gasto registrado: "${name}" — ${fmt(amount)} (${category})`);saveData();closeSheet();render();showToast("✓ Gasto registrado");}
+function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+richTextField("Nota (opcional)","f-note","Detalle adicional...",e.note||""),"saveEditExpense('"+id+"')");}
+function saveEditExpense(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=readRichNote("f-note");if(!name||!amount)return;state.expenses=state.expenses.map(e=>e.id===id?{...e,name,amount,category,date,note}:e);addLog("✏️","Gasto editado: \""+name+"\" — "+fmt(amount)+" ("+category+")");saveData();closeSheet();render();showToast("✓ Gasto actualizado");}
+function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+richTextField("Nota (opcional)","f-note","Detalle adicional..."),"saveAddExpense()");}
+function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=readRichNote("f-note");if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});addLog("🧾",`Gasto registrado: "${name}" — ${fmt(amount)} (${category})`);saveData();closeSheet();render();showToast("✓ Gasto registrado");}
 function openAddStudent(){openSheet("👤 Agregar alumno",field("Nombre (Apellido, Nombre)","f-name","ej: Soto Pérez, Florencia"),"saveAddStudent()");}
 function saveAddStudent(){const name=document.getElementById("f-name").value.trim();if(!name)return;state.students.push({id:uid(),name});saveData();closeSheet();render();showToast("✓ Alumno agregado");}
 
