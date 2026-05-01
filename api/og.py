@@ -7,15 +7,16 @@ import base64
 
 FIREBASE_BASE = "https://bsg-7772d-default-rtdb.firebaseio.com"
 W, H = 1200, 630
-NAVY = (26, 35, 64)
-NAVY_DARK = (22, 29, 52)
-NAVY_BOTTOM = (22, 45, 74)
-BLUE = (45, 91, 227)
-WHITE = (255, 255, 255)
-MUTED = (168, 196, 224)
-MUTED2 = (123, 168, 204)
-BOTTOM_BG = (22, 45, 74)
-URL_COLOR = (90, 143, 194)
+
+BG        = (248, 250, 252)   # slate-50
+SURFACE   = (255, 255, 255)   # white card
+NAVY      = (26,  40,  68)    # text principal
+BLUE      = (45,  91,  227)   # acento
+BLUE_SOFT = (238, 242, 255)   # fondo badge
+MUTED     = (100, 116, 139)   # slate-500
+BORDER    = (226, 232, 240)   # slate-200
+URL_COLOR = (45,  91,  227)
+
 
 FONT_PATHS = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -54,24 +55,25 @@ def _fetch_logo_b64(colegio_id):
 def _build_image(logo_b64):
     from PIL import Image, ImageDraw
 
-    img = Image.new("RGB", (W, H), NAVY)
+    img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
 
-    # Subtle top gradient
-    for y in range(160):
-        t = y / 160
-        r = int(NAVY[0] * (1 - t) + NAVY_DARK[0] * t)
-        g = int(NAVY[1] * (1 - t) + NAVY_DARK[1] * t)
-        b = int(NAVY[2] * (1 - t) + NAVY_DARK[2] * t)
-        draw.line([(0, y), (W, y)], fill=(r, g, b))
+    font_title  = _load_font(FONT_PATHS,     68)
+    font_sub    = _load_font(FONT_PATHS_REG, 34)
+    font_tag    = _load_font(FONT_PATHS,     22)
+    font_small  = _load_font(FONT_PATHS_REG, 26)
 
-    font_title = _load_font(FONT_PATHS, 74)
-    font_med = _load_font(FONT_PATHS_REG, 37)
-    font_small = _load_font(FONT_PATHS_REG, 28)
+    # White card (center area)
+    card_x, card_y = 64, 60
+    card_w, card_h = W - 128, 430
+    draw.rounded_rectangle(
+        [card_x, card_y, card_x + card_w, card_y + card_h],
+        radius=24, fill=SURFACE, outline=BORDER, width=2
+    )
 
-    logo_x, logo_y, logo_size = 80, 55, 130
-
-    # Logo or fallback circle
+    # Logo or fallback square
+    logo_size = 110
+    logo_x, logo_y = card_x + 52, card_y + (card_h - logo_size) // 2
     if logo_b64:
         try:
             b64_data = logo_b64.split(",")[1] if "," in logo_b64 else logo_b64
@@ -80,33 +82,60 @@ def _build_image(logo_b64):
             logo_img.thumbnail((logo_size, logo_size), Image.LANCZOS)
             lw, lh = logo_img.size
             bg = Image.new("RGBA", (logo_size, logo_size), (255, 255, 255, 255))
-            offset_x = (logo_size - lw) // 2
-            offset_y = (logo_size - lh) // 2
-            bg.paste(logo_img, (offset_x, offset_y), logo_img)
-            bg_round = bg.convert("RGB")
-            # Rounded mask
+            bg.paste(logo_img, ((logo_size - lw) // 2, (logo_size - lh) // 2), logo_img)
             mask = Image.new("L", (logo_size, logo_size), 0)
             from PIL import ImageDraw as ID2
             m = ID2.Draw(mask)
-            m.rounded_rectangle([0, 0, logo_size, logo_size], radius=18, fill=255)
-            img.paste(bg_round, (logo_x, logo_y), mask)
+            m.rounded_rectangle([0, 0, logo_size, logo_size], radius=16, fill=255)
+            img.paste(bg.convert("RGB"), (logo_x, logo_y), mask)
         except Exception:
             logo_b64 = None
 
     if not logo_b64:
-        draw.rounded_rectangle([logo_x, logo_y, logo_x + logo_size, logo_y + logo_size], radius=18, fill=BLUE)
-        draw.text((logo_x + logo_size // 2, logo_y + logo_size // 2), "$", font=font_title, fill=WHITE, anchor="mm")
+        draw.rounded_rectangle(
+            [logo_x, logo_y, logo_x + logo_size, logo_y + logo_size],
+            radius=16, fill=BLUE_SOFT
+        )
+        draw.text(
+            (logo_x + logo_size // 2, logo_y + logo_size // 2),
+            "$", font=font_title, fill=BLUE, anchor="mm"
+        )
 
-    text_x = logo_x + logo_size + 28
-    draw.text((text_x, logo_y + logo_size // 2), "Tesoreros App", font=font_title, fill=WHITE, anchor="lm")
+    # Text block
+    text_x = logo_x + logo_size + 48
+    text_mid_y = card_y + card_h // 2
 
-    draw.line([(80, 230), (W - 80, 230)], fill=BLUE, width=2)
+    draw.text((text_x, text_mid_y - 68), "Tesoreros App",
+              font=font_title, fill=NAVY, anchor="lm")
+    draw.text((text_x, text_mid_y + 8), "Plataforma de gestión para delegados y",
+              font=font_sub, fill=MUTED, anchor="lm")
+    draw.text((text_x, text_mid_y + 52), "tesoreros de colegios.",
+              font=font_sub, fill=MUTED, anchor="lm")
 
-    draw.text((80, 285), "Plataforma de gestión para delegados y tesoreros de colegios.", font=font_med, fill=MUTED, anchor="lm")
-    draw.text((80, 345), "Cuotas  ·  Actividades  ·  Pagos  ·  Reportes", font=font_med, fill=MUTED2, anchor="lm")
+    # Feature tags row
+    tags = ["Cuotas", "Actividades", "Pagos", "Reportes"]
+    tag_x = card_x + 52
+    tag_y = card_y + card_h - 58
+    pad_x, pad_y, r = 18, 8, 12
+    for tag in tags:
+        bbox = font_tag.getbbox(tag)
+        tw = bbox[2] - bbox[0]
+        th = bbox[3] - bbox[1]
+        bw = tw + pad_x * 2
+        bh = th + pad_y * 2
+        draw.rounded_rectangle(
+            [tag_x, tag_y, tag_x + bw, tag_y + bh],
+            radius=r, fill=BLUE_SOFT
+        )
+        draw.text((tag_x + pad_x, tag_y + pad_y - bbox[1]), tag,
+                  font=font_tag, fill=BLUE)
+        tag_x += bw + 12
 
-    draw.rectangle([0, 570, W, H], fill=BOTTOM_BG)
-    draw.text((80, 600), "tesoreros-app.vercel.app", font=font_small, fill=URL_COLOR, anchor="lm")
+    # Bottom URL bar
+    bar_y = H - 80
+    draw.rectangle([0, bar_y, W, H], fill=NAVY)
+    draw.text((80, bar_y + 40), "tesoreros-app.vercel.app",
+              font=font_small, fill=(148, 163, 184), anchor="lm")
 
     return img
 

@@ -972,8 +972,9 @@ async function doApoderadoLogin(){
 
     if(cid && curid){
       // Nuevo sistema: validar contra pinLectura en /plataforma (public read)
-      var r = await fetch(_FB_BASE + "/plataforma/colegios/" + cid + "/cursos/" + curid + ".json");
-      var cur = await r.json();
+      var rCol = await fetch(_FB_BASE + "/plataforma/colegios/" + cid + ".json");
+      var col = await rCol.json();
+      var cur = col && col.cursos && col.cursos[curid];
       if(!cur || !cur.pinLectura){
         errEl.textContent = "Curso sin PIN configurado"; errEl.classList.remove("hidden");
         btn.disabled = false; btn.textContent = "Ver curso"; return;
@@ -986,7 +987,7 @@ async function doApoderadoLogin(){
         _type:"apoderado",
         colegioId: cid, cursoId: curid, temporada: null,
         rol:"apoderado", token:null, meta:{},
-        colegioNombre: cid, cursoNombre: cur.nombre || curid
+        colegioNombre: (col && col.nombre) || cid, cursoNombre: cur.nombre || curid
       };
       sessionStorage.setItem("sesionv2", JSON.stringify(ses));
       _initSession(ses);
@@ -2739,7 +2740,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.87";
+const APP_VERSION="v2.88";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
