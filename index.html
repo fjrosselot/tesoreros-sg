@@ -1854,11 +1854,15 @@ async function exportPagosImagen(){
   state.students.forEach(student=>{
     state.quotas.forEach(quota=>{
       if(!quota.activo||quota.borrador) return;
+      const pagado=getPagado(student.id,quota.id);
+      const deuda=getDeuda(student.id,quota.id);
       rows.push({
-        nombre:student.nombre||'N/A',
-        cuota:quota.nombre,
-        pagado:getPagado(student.id,quota.id),
-        deuda:getDeuda(student.id,quota.id)
+        values:[
+          student.nombre||'N/A',
+          quota.nombre,
+          formatMoneyCompact(pagado),
+          formatMoneyCompact(deuda)
+        ]
       });
     });
   });
@@ -1872,9 +1876,11 @@ async function exportPagosImagen(){
 
   const title='ESTADO DE PAGOS — '+(_SESSION.colegioNombre||'SG')+' '+(_SESSION.cursoNombre||'4B');
   const subtitle='Fecha: '+new Date().toLocaleDateString('es-CL');
+  const totalRecaudado=getTotalRecaudado();
+  const totalDeuda=getTotalDeuda();
   const totals={
-    recaudado:getTotalRecaudado(),
-    deuda:getTotalDeuda()
+    recaudado:totalRecaudado,
+    deuda:totalDeuda
   };
 
   const canvas=canvasExporter.tableToImage(title,subtitle,rows,cols,totals);
@@ -3039,7 +3045,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.96";
+const APP_VERSION="v2.97";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
