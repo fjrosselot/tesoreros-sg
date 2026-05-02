@@ -1808,41 +1808,35 @@ function formatMoneyCompact(num){
 }
 
 function getPagado(studentId,quotaId){
-  if(!state.payments[quotaId]) return 0;
-  const studentPayments=state.payments[quotaId][studentId];
-  if(!studentPayments) return 0;
-  if(typeof studentPayments==='number') return studentPayments;
-  if(Array.isArray(studentPayments)){
-    return studentPayments.reduce((sum,p)=>sum+(typeof p==='number'?p:0),0);
-  }
-  return 0;
+  return state.payments.filter(p=>p.studentId===studentId&&p.quotaId===quotaId).reduce((sum,p)=>sum+(p.amount||0),0);
 }
 
 function getDeuda(studentId,quotaId){
   const quota=state.quotas.find(q=>q.id===quotaId);
   if(!quota) return 0;
-  const monto=quota.monto||0;
+  const monto=quota.amount||0;
   const pagado=getPagado(studentId,quotaId);
   return Math.max(0,monto-pagado);
 }
 
 function getTotalRecaudado(){
   let total=0;
-  state.quotas.forEach(q=>{
-    if(!q.activo||q.borrador) return;
-    Object.keys(state.payments[q.id]||{}).forEach(sid=>{
-      total+=getPagado(sid,q.id);
-    });
+  const activeQuotaIds=new Set(state.quotas.filter(q=>q.activo&&!q.borrador).map(q=>q.id));
+  state.payments.forEach(p=>{
+    if(activeQuotaIds.has(p.quotaId)) total+=p.amount||0;
   });
   return total;
 }
 
 function getTotalDeuda(){
   let total=0;
+  const activeQuotas=state.quotas.filter(q=>q.activo&&!q.borrador);
+  const quotaMap=new Map(activeQuotas.map(q=>[q.id,q.amount||0]));
   state.students.forEach(s=>{
-    state.quotas.forEach(q=>{
-      if(!q.activo||q.borrador) return;
-      total+=getDeuda(s.id,q.id);
+    activeQuotas.forEach(q=>{
+      const pagado=getPagado(s.id,q.id);
+      const monto=quotaMap.get(q.id)||0;
+      total+=Math.max(0,monto-pagado);
     });
   });
   return total;
@@ -3045,7 +3039,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.97";
+const APP_VERSION="v2.98";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
