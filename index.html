@@ -1415,6 +1415,12 @@ document.addEventListener("DOMContentLoaded", function(){
     return;
   }
 
+  // Link apoderado por query param
+  if(qp.get("apoderado")){
+    showApoderadoLogin(qp.get("apoderado"));
+    return;
+  }
+
   // Restaurar sesión guardada
   var saved = sessionStorage.getItem("sesionv2");
   if(saved){
@@ -1790,7 +1796,8 @@ const canvasExporter = {
 };
 
 function generateUUID(){
-  return crypto.randomUUID();
+  if(crypto && crypto.randomUUID) return crypto.randomUUID();
+  return uid() + uid() + uid();
 }
 
 async function generateLinkApoderado(qidFilter=null){
@@ -1849,9 +1856,14 @@ async function generateAndCopyLink(){
     const uuid=await generateLinkApoderado(qidFilter);
     const link=window.location.origin+"?apoderado="+uuid;
 
-    await navigator.clipboard.writeText(link);
-    alert("Link copiado ✓\n\n"+link);
-    closeSheet();
+    navigator.clipboard.writeText(link)
+      .then(()=>{
+        showToast("✓ Link copiado al portapapeles");
+        closeSheet();
+      })
+      .catch(()=>{
+        prompt("Copia este link manualmente:",link);
+      });
   }catch(err){
     alert("Error al generar link: "+err.message);
   }
