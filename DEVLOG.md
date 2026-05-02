@@ -1,8 +1,8 @@
 # DEVLOG — Tesoreros App
 
-## [2026-05-02] — v2.88→v2.94: cuotas desktop Alt G + fixes panel
+## [2026-05-02] — v2.88→v2.94: cuotas desktop Alt G + verificación WhatsApp + editar actividades
 
-**Resumen:** Rediseño completo del panel de cuotas desktop según mockup Alt G: sidebar con tinte slate (`var(--bg)`), items como cards con sombra al seleccionar, tabs como pills con fill azul, panel derecho con banner navy (título + KPIs inline + barra de progreso) seguido de área de formulario blanca. Múltiples fixes de estabilidad y dark mode.
+**Resumen:** Rediseño completo del panel de cuotas desktop según mockup Alt G: sidebar con tinte slate (`var(--bg)`), items como cards con sombra al seleccionar, tabs como pills con fill azul, panel derecho con banner navy (título + KPIs inline + barra de progreso) seguido de área de formulario blanca. Múltiples fixes de estabilidad y dark mode. Verificación de preview WhatsApp con logo real subido desde superadmin. Feature para editar actividad existente (nombre, precios, fecha límite) completada.
 
 **Archivos:** `index.html`, `backbone-mockups/src/projects/tesoreros/CuotasDesktopAltG.tsx`, `backbone-mockups/src/projects/tesoreros/CuotasDesktopAltH.tsx`, `backbone-mockups/src/hub/data.ts`, `backbone-mockups/src/router.tsx`
 
@@ -13,9 +13,11 @@
 - Sidebar/footer usaban `#f1f5f9` hardcodeado → reemplazado por `var(--bg)` para dark mode.
 - `overflow-y:scroll` (no `auto`) en el área de formulario para que el scrollbar siempre reserve espacio y no cause layout shift.
 
+**Completados:**
+- [x] Verificar preview de WhatsApp con logo real subido desde superadmin
+- [x] Editar actividad existente (nombre, precios, fecha límite)
+
 **Pendientes:**
-- [ ] Verificar preview de WhatsApp con logo real subido desde superadmin
-- [ ] Editar actividad existente (nombre, precios, fecha límite)
 - [ ] Link apoderado generado desde la app por el tesorero
 - [ ] Exportar estado de pagos (Excel/imagen)
 - [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
