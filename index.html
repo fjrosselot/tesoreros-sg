@@ -1970,9 +1970,10 @@ function getTotalDeudaQuota(quotaId){
 }
 
 function getGrupalMensaje(){
-  const deudas=state.quotas
-    .filter(q=>q.activo&&getTotalDeudaQuota(q.id)>0)
-    .map(q=>'- '+q.name);
+  if(!state.quotas||state.quotas.length===0) return 'No hay cuotas configuradas en este curso.';
+  const deudasQuotas=state.quotas.filter(q=>q.activo&&getTotalDeudaQuota(q.id)>0);
+  if(deudasQuotas.length===0) return 'No hay pendientes en este curso. ¡Excelente estado!';
+  const deudas=deudasQuotas.map(q=>'- '+q.name);
   const totalDeuda=getTotalDeuda();
   return 'Recordar que el curso '+_SESSION.colegioNombre+' '+_SESSION.cursoNombre+' tiene pendientes por $'+formatMoneyCompact(totalDeuda)+' en:\n'+deudas.join('\n')+'\n\nFavor completar pagos.';
 }
@@ -2040,6 +2041,9 @@ function renderGrupalTab(){
 }
 
 function renderPersonalTab(){
+  if(!state.students||!state.quotas){
+    return '<div class="recordatorio-tab"><div class="error-message">Error cargando datos</div></div>';
+  }
   const estudiantesConDeuda=state.students
     .filter(s=>state.quotas.filter(q=>q.activo).some(q=>getDeuda(s.id,q.id)>0))
     .sort((a,b)=>a.name.localeCompare(b.name,"es"));
@@ -2059,8 +2063,8 @@ function renderPersonalTab(){
       +'<div style="font-size:12px;color:var(--muted)">$'+formatMoneyCompact(totalDeuda)+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:6px">'
-      +'<button class="btn-small" onclick="copyToClipboard(getPersonalMensaje(\''+s.id+'\'))" style="padding:6px 10px;font-size:12px;border:none;background:var(--navy);color:#fff;border-radius:6px;cursor:pointer;font-family:Roboto,sans-serif">📋</button>'
-      +'<button class="btn-small" onclick="openInWhatsApp(getPersonalMensaje(\''+s.id+'\'))" style="padding:6px 10px;font-size:12px;border:none;background:var(--navy);color:#fff;border-radius:6px;cursor:pointer;font-family:Roboto,sans-serif">💬</button>'
+      +'<button class="btn-small btn-copy" data-student-id="'+s.id+'" style="padding:6px 10px;font-size:12px;border:none;background:var(--navy);color:#fff;border-radius:6px;cursor:pointer;font-family:Roboto,sans-serif">📋</button>'
+      +'<button class="btn-small btn-whatsapp" data-student-id="'+s.id+'" style="padding:6px 10px;font-size:12px;border:none;background:var(--navy);color:#fff;border-radius:6px;cursor:pointer;font-family:Roboto,sans-serif">💬</button>'
       +'</div>'
       +'</div>';
   });
@@ -2072,7 +2076,7 @@ function renderLinkTab(){
   return '<div class="recordatorio-tab">'
     +'<h4 style="margin-bottom:12px">Link para Apoderados</h4>'
     +'<p style="color:var(--muted);font-size:13px;margin-bottom:12px">Genera un link con acceso al estado de pagos del curso. Válido por 30 días.</p>'
-    +'<button class="btn-save" onclick="generateAndShowLinkMensaje()" style="width:100%;margin-bottom:12px">🔗 Generar Link</button>'
+    +'<button class="btn-save" id="btn-generate-link" onclick="generateAndShowLinkMensaje(event)" style="width:100%;margin-bottom:12px">🔗 Generar Link</button>'
     +'<div id="link-container" style="display:none;margin-top:20px">'
     +'<textarea readonly rows="4" id="link-mensaje" class="mensaje-box" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;line-height:1.5;background:var(--surface);color:var(--text);resize:none;margin-bottom:12px"></textarea>'
     +'<div class="tab-actions" style="display:flex;gap:8px">'
@@ -2083,13 +2087,18 @@ function renderLinkTab(){
     +'</div>';
 }
 
-async function generateAndShowLinkMensaje(){
+async function generateAndShowLinkMensaje(e){
+  const btn=e?.currentTarget||document.getElementById('btn-generate-link');
+  if(!btn) return;
+  btn.disabled=true;
   try{
     const mensaje=await getLinkMensaje();
     document.getElementById('link-mensaje').value=mensaje;
     document.getElementById('link-container').style.display='block';
   }catch(err){
     showToast('Error al generar link','error');
+  }finally{
+    btn.disabled=false;
   }
 }
 
@@ -2132,6 +2141,18 @@ function openRecordatoriosPanel(){
     +'</div>'
     +'</div>'
     +'</div>';
+  document.removeEventListener('click',_recordatoriosEventHandler);
+  document.addEventListener('click',_recordatoriosEventHandler);
+}
+
+function _recordatoriosEventHandler(e){
+  if(e.target.classList.contains('btn-copy')){
+    const sid=e.target.dataset.studentId;
+    copyToClipboard(getPersonalMensaje(sid));
+  }else if(e.target.classList.contains('btn-whatsapp')){
+    const sid=e.target.dataset.studentId;
+    openInWhatsApp(getPersonalMensaje(sid));
+  }
 }
 
 function render(){
@@ -3210,7 +3231,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.99";
+const APP_VERSION="v2.100";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
