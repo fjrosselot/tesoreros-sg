@@ -1456,7 +1456,22 @@ var cuotasDesktopSel=null;
 function uid(){return Math.random().toString(36).slice(2,10);}
 function fmt(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
 function hoy(){return new Date().toISOString().slice(0,10);}
-function blankState(){return{students:[],quotas:[],payments:[],expenses:[],log:[],saldoInicial:0,ingresosProyectados:[]};}
+// pagosValidacion entry: {
+//   id: uuid,
+//   apoderadoUuid: string,
+//   apoderadoNombre: string,
+//   studentSid: string,
+//   studentNombre: string,
+//   quotaIds: [id1, id2, ...],
+//   totalAmount: number,
+//   totalQuotas: number,
+//   timestamp: number (ms),
+//   status: "pending" | "confirmed" | "rejected",
+//   confirmedBy: string (uid of treasurer),
+//   confirmedAt: number (ms, null if pending),
+//   reason: string (optional rejection reason)
+// }
+function blankState(){return{students:[],quotas:[],payments:[],expenses:[],log:[],saldoInicial:0,ingresosProyectados:[],pagosValidacion:[]};}
 function toArr(v){
   if(!v) return [];
   if(Array.isArray(v)) return v;
@@ -1473,7 +1488,8 @@ function mergeState(val){
     expenses: toArr(val.expenses),
     log:      toArr(val.log),
     saldoInicial: val.saldoInicial||0,
-    ingresosProyectados: toArr(val.ingresosProyectados)
+    ingresosProyectados: toArr(val.ingresosProyectados),
+    pagosValidacion: toArr(val.pagosValidacion)
   };
 }
 function saveData(){
