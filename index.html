@@ -508,6 +508,9 @@ input,select{font-family:'Roboto',sans-serif;}
   };
 
   function savePagoValidacion(apoderadoUuid, apoderadoNombre, studentSid, studentNombre, quotaIds, totalAmount){
+    if (!apoderadoUuid || !apoderadoNombre || !studentSid || !studentNombre || !Array.isArray(quotaIds) || quotaIds.length === 0 || typeof totalAmount !== 'number' || totalAmount <= 0) {
+      return null;
+    }
     const id = uuid();
     const entry = {
       id: id,
@@ -520,8 +523,8 @@ input,select{font-family:'Roboto',sans-serif;}
       totalQuotas: quotaIds.length,
       timestamp: Date.now(),
       status: "pending",
-      confirmedBy: null,
-      confirmedAt: null,
+      processedBy: null,
+      processedAt: null,
       reason: null
     };
     if(!state.pagosValidacion) state.pagosValidacion = [];
@@ -531,25 +534,25 @@ input,select{font-family:'Roboto',sans-serif;}
       pagosValidacionId: id,
       apoderado: apoderadoNombre,
       student: studentNombre,
-      quotas: quotaIds.length,
+      quotas: entry.totalQuotas,
       amount: totalAmount
     });
     return id;
   }
 
   function confirmPagoValidacion(pagosValidacionId, treasurerUid){
-    if(!state.pagosValidacion) state.pagosValidacion = [];
+    if(!state.pagosValidacion) return false;
     const entry = state.pagosValidacion.find(p => p.id === pagosValidacionId);
     if(!entry) return false;
 
     entry.status = "confirmed";
-    entry.confirmedBy = treasurerUid;
-    entry.confirmedAt = Date.now();
+    entry.processedBy = treasurerUid;
+    entry.processedAt = Date.now();
 
     _fbSave(state);
     _logAction("pago_validacion_confirmed", {
       pagosValidacionId: pagosValidacionId,
-      confirmedBy: treasurerUid,
+      processedBy: treasurerUid,
       student: entry.studentNombre,
       amount: entry.totalAmount
     });
@@ -557,19 +560,19 @@ input,select{font-family:'Roboto',sans-serif;}
   }
 
   function rejectPagoValidacion(pagosValidacionId, treasurerUid, reason){
-    if(!state.pagosValidacion) state.pagosValidacion = [];
+    if(!state.pagosValidacion) return false;
     const entry = state.pagosValidacion.find(p => p.id === pagosValidacionId);
     if(!entry) return false;
 
     entry.status = "rejected";
-    entry.confirmedBy = treasurerUid;
-    entry.confirmedAt = Date.now();
-    entry.reason = reason || "";
+    entry.processedBy = treasurerUid;
+    entry.processedAt = Date.now();
+    entry.reason = reason || null;
 
     _fbSave(state);
     _logAction("pago_validacion_rejected", {
       pagosValidacionId: pagosValidacionId,
-      rejectedBy: treasurerUid,
+      processedBy: treasurerUid,
       student: entry.studentNombre,
       amount: entry.totalAmount,
       reason: reason
