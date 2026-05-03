@@ -451,6 +451,13 @@ input,select{font-family:'Roboto',sans-serif;}
   let _fbLastHash = null;
   let _fbSaveTs = 0;
 
+  function uuid(){
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   window._fbSave = function(s) {
     _fbSaveTs = Date.now();
     const body = JSON.stringify(s);
@@ -499,6 +506,76 @@ input,select{font-family:'Roboto',sans-serif;}
         .catch(function(e){ console.error("FB poll:", e); });
     }, 6000);
   };
+
+  function savePagoValidacion(apoderadoUuid, apoderadoNombre, studentSid, studentNombre, quotaIds, totalAmount){
+    const id = uuid();
+    const entry = {
+      id: id,
+      apoderadoUuid: apoderadoUuid,
+      apoderadoNombre: apoderadoNombre,
+      studentSid: studentSid,
+      studentNombre: studentNombre,
+      quotaIds: quotaIds,
+      totalAmount: totalAmount,
+      totalQuotas: quotaIds.length,
+      timestamp: Date.now(),
+      status: "pending",
+      confirmedBy: null,
+      confirmedAt: null,
+      reason: null
+    };
+    if(!state.pagosValidacion) state.pagosValidacion = [];
+    state.pagosValidacion.push(entry);
+    _fbSave(state);
+    _logAction("pago_validacion_created", {
+      pagosValidacionId: id,
+      apoderado: apoderadoNombre,
+      student: studentNombre,
+      quotas: quotaIds.length,
+      amount: totalAmount
+    });
+    return id;
+  }
+
+  function confirmPagoValidacion(pagosValidacionId, treasurerUid){
+    if(!state.pagosValidacion) state.pagosValidacion = [];
+    const entry = state.pagosValidacion.find(p => p.id === pagosValidacionId);
+    if(!entry) return false;
+
+    entry.status = "confirmed";
+    entry.confirmedBy = treasurerUid;
+    entry.confirmedAt = Date.now();
+
+    _fbSave(state);
+    _logAction("pago_validacion_confirmed", {
+      pagosValidacionId: pagosValidacionId,
+      confirmedBy: treasurerUid,
+      student: entry.studentNombre,
+      amount: entry.totalAmount
+    });
+    return true;
+  }
+
+  function rejectPagoValidacion(pagosValidacionId, treasurerUid, reason){
+    if(!state.pagosValidacion) state.pagosValidacion = [];
+    const entry = state.pagosValidacion.find(p => p.id === pagosValidacionId);
+    if(!entry) return false;
+
+    entry.status = "rejected";
+    entry.confirmedBy = treasurerUid;
+    entry.confirmedAt = Date.now();
+    entry.reason = reason || "";
+
+    _fbSave(state);
+    _logAction("pago_validacion_rejected", {
+      pagosValidacionId: pagosValidacionId,
+      rejectedBy: treasurerUid,
+      student: entry.studentNombre,
+      amount: entry.totalAmount,
+      reason: reason
+    });
+    return true;
+  }
 </script>
 </head>
 <body>
